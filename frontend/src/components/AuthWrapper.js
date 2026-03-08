@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer } from 'react-toastify';
 import { getUserDetail } from '../api/userApi';
 // import SockJS from 'sockjs-client';
 // import { Client } from '@stomp/stompjs';
@@ -17,7 +17,7 @@ export const Layout = ({ children, onLogout }) => (
 );
 
 const AuthWrapper = ({ children }) => {
-  const [userId, setUserId] = useState(null);
+  // const [userId, setUserId] = useState(null);
   const [isVerifying, setIsVerifying] = useState(true);
   const location = useLocation();
   
@@ -28,7 +28,7 @@ const AuthWrapper = ({ children }) => {
       getUserDetail()
         .then(res => {
           if (res && res.result && res.result.id) {
-            setUserId(res.result.id);
+            // setUserId(res.result.id);
           }
           setIsVerifying(false);
         })

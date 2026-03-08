@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
@@ -21,17 +21,12 @@ const ProfilePage = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null); 
   const [actionLoading, setActionLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchUserData();
-  }, [userId]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('accessToken');
@@ -67,20 +62,22 @@ const ProfilePage = () => {
       setProfile(profData);
       setUserPosts(posts);
     } catch (err) {
-      setError('Failed to load profile.');
+      console.error('Error loading profile:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, navigate]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const handleAction = async (actionFunc, ...args) => {
     setActionLoading(true);
     try {
       await actionFunc(...args);
-      const userRes = userId ? await getUserById(userId) : await getUserDetail();
-      const status = await getConnectionStatus(userRes.result.id);
-      setConnectionStatus(status);
       toast.success('Action successful');
+      fetchUserData(); // Refresh data
     } catch (err) {
       toast.error('Action failed');
     } finally {
@@ -95,9 +92,8 @@ const ProfilePage = () => {
   );
 
   return (
-    <div className="page-layout two-column-grid">
+    <div className="page-layout two-column-layout">
       <main className="profile-main">
-        {/* Header Card */}
         <div className="linkedin-card">
           <div className="profile-cover"></div>
           <div className="profile-avatar-wrap">
@@ -114,14 +110,14 @@ const ProfilePage = () => {
               ) : (
                 <>
                   {connectionStatus?.status === 'NONE' && (
-                    <button onClick={() => handleAction(sendConnectionRequest, userDetails.id)} className="primary-button">Connect</button>
+                    <button onClick={() => handleAction(sendConnectionRequest, userDetails.id)} className="primary-button" disabled={actionLoading}>Connect</button>
                   )}
                   {connectionStatus?.status === 'PENDING' && (
                     connectionStatus.isRequester ? 
-                    <button onClick={() => handleAction(cancelConnectionRequest, connectionStatus.connectionId)} className="secondary-button">Withdraw</button> :
+                    <button onClick={() => handleAction(cancelConnectionRequest, connectionStatus.connectionId)} className="secondary-button" disabled={actionLoading}>Withdraw</button> :
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, true)} className="primary-button">Accept</button>
-                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, false)} className="secondary-button">Ignore</button>
+                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, true)} className="primary-button" disabled={actionLoading}>Accept</button>
+                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, false)} className="secondary-button" disabled={actionLoading}>Ignore</button>
                     </div>
                   )}
                   {connectionStatus?.status === 'ACCEPTED' && <button className="primary-button">Message</button>}
@@ -131,13 +127,11 @@ const ProfilePage = () => {
           </div>
         </div>
 
-        {/* About Card */}
         <div className="linkedin-card">
           <div className="card-header"><h3>About</h3></div>
           <div className="card-body"><p>{profile?.summary || 'No summary yet.'}</p></div>
         </div>
 
-        {/* Activity Card */}
         <div className="linkedin-card">
           <div className="card-header"><h3>Activity</h3><p style={{ fontSize: '12px' }}>{userPosts.length} posts</p></div>
           <div className="card-body">

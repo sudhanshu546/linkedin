@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getFeed, likePost, commentOnPost, getComments, getLikeCount } from '../api/postApi';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -15,7 +15,6 @@ import '../App.css';
 const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   
   const [activeFeedItemId, setActiveFeedItemId] = useState(null);
   const [commentInputs, setCommentInputs] = useState({}); 
@@ -24,25 +23,7 @@ const Feed = () => {
 
   const IMAGE_BASE_URL = 'http://localhost:8081/uploads/'; 
 
-  useEffect(() => {
-    fetchFeed();
-  }, []);
-
-  const fetchFeed = async () => {
-    try {
-      const data = await getFeed();
-      setPosts(data);
-      data.forEach(item => {
-        if (item.postId) fetchPostStats(item.postId);
-      });
-    } catch (err) {
-      setError('Failed to load feed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPostStats = async (postId) => {
+  const fetchPostStats = useCallback(async (postId) => {
     try {
       const likes = await getLikeCount(postId);
       const comments = await getComments(postId);
@@ -51,7 +32,25 @@ const Feed = () => {
         [postId]: { likes, comments: comments.length }
       }));
     } catch (err) {}
-  };
+  }, []);
+
+  const fetchFeed = useCallback(async () => {
+    try {
+      const data = await getFeed();
+      setPosts(data);
+      data.forEach(item => {
+        if (item.postId) fetchPostStats(item.postId);
+      });
+    } catch (err) {
+      console.error('Error fetching feed:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchPostStats]);
+
+  useEffect(() => {
+    fetchFeed();
+  }, [fetchFeed]);
 
   const handleLike = async (postId) => {
     try {

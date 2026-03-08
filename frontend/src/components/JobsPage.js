@@ -3,7 +3,7 @@ import { getJobs, searchJobs, applyToJob, getMyApplications } from '../api/userA
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faBuilding, faCheckCircle, faBriefcase, faList, faBookmark } from '@fortawesome/free-solid-svg-icons';
+import { faSearch, faBuilding, faBriefcase } from '@fortawesome/free-solid-svg-icons';
 import '../App.css';
 
 const JobsPage = () => {
@@ -70,109 +70,90 @@ const JobsPage = () => {
   );
 
   return (
-    <div className="page-layout three-column-grid">
-      {/* Column 1: Left Sidebar (Search & Navigation) */}
-      <aside className="left-column">
-        <div className="linkedin-card" style={{ padding: '16px' }}>
-          <h3 style={{ fontSize: '16px', marginBottom: '16px', fontWeight: 600 }}>Job Search</h3>
-          <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div className="navbar-search-refined" style={{ width: '100%', marginLeft: 0 }}>
-                <FontAwesomeIcon icon={faSearch} />
-                <input 
-                    placeholder="Search jobs..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </div>
-            <button type="submit" className="btn-primary-round" style={{ width: '100%' }}>Search</button>
+    <div className="jobs-page-wrapper">
+      <div className="jobs-header-banner">
+        <div className="navbar-container">
+          <form onSubmit={handleSearch} className="jobs-main-search" style={{ display: 'flex', alignItems: 'center', background: '#eef3f8', borderRadius: '4px', padding: '0 12px', width: '600px' }}>
+            <FontAwesomeIcon icon={faSearch} style={{ color: '#666' }} />
+            <input 
+              placeholder="Search jobs" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ background: 'transparent', border: 'none', padding: '10px', flex: 1, outline: 'none' }}
+            />
+            <button type="submit" className="btn-primary-round">Search</button>
           </form>
         </div>
+      </div>
 
-        <div className="linkedin-card" style={{ padding: '12px 0' }}>
-            <div className="stat-row">
-                <span><FontAwesomeIcon icon={faBookmark} /> My Jobs</span>
+      <div className="page-layout three-column-grid">
+        <aside className="left-column">
+          <div className="linkedin-card" style={{ padding: '16px' }}>
+            <h3 style={{ fontSize: '16px', marginBottom: '16px', fontWeight: 600 }}>Manage my jobs</h3>
+            <div style={{ fontSize: '14px', color: 'var(--linkedin-blue)', fontWeight: 600, cursor: 'pointer' }}>
+              My Applications ({myApps.length})
             </div>
-            <div className="stat-row">
-                <span><FontAwesomeIcon icon={faList} /> Job Alerts</span>
-            </div>
-            <div className="stat-row">
-                <Link to="/jobs/post" style={{ textDecoration: 'none', color: 'var(--linkedin-blue)', fontWeight: 600 }}>
-                    Post a Job
-                </Link>
-            </div>
-        </div>
-      </aside>
-
-      {/* Column 2: Middle (Job List) */}
-      <main className="feed-column">
-        <div className="linkedin-card" style={{ padding: 0 }}>
-          <div className="card-header">
-            <h3>Recent Job Postings</h3>
           </div>
-          <div style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}>
-            {jobs.length === 0 ? (
-              <div style={{ padding: '24px', textAlign: 'center' }}>No jobs found</div>
-            ) : (
-              jobs.map(job => (
+        </aside>
+
+        <main className="feed-column">
+          <div className="linkedin-card">
+            <div className="card-header">
+              <h3>Jobs for you</h3>
+              <Link to="/jobs/post" className="btn-secondary-round" style={{ textDecoration: 'none' }}>Post a job</Link>
+            </div>
+            <div className="job-items-list">
+              {jobs.map(job => (
                 <div 
                   key={job.id} 
-                  className={`job-card-list-item ${selectedJob?.id === job.id ? 'selected' : ''}`}
+                  className={`job-item ${selectedJob?.id === job.id ? 'active' : ''}`}
                   onClick={() => setSelectedJob(job)}
                 >
-                  <div className="job-company-icon">
+                  <div style={{ width: '48px', height: '48px', background: '#f3f2ef', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', fontSize: '24px', color: '#666' }}>
                     <FontAwesomeIcon icon={faBuilding} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: '0 0 2px', fontSize: '15px', color: 'var(--linkedin-blue)' }}>{job.title}</h4>
-                    <p style={{ margin: 0, fontSize: '13px' }}>{job.company}</p>
+                    <h4 style={{ margin: '0 0 2px', fontSize: '16px', color: 'var(--linkedin-blue)' }}>{job.title}</h4>
+                    <p style={{ margin: 0, fontSize: '14px' }}>{job.company}</p>
                     <p style={{ margin: 0, fontSize: '12px', color: 'var(--linkedin-secondary-text)' }}>{job.location}</p>
                     {isApplied(job.id) && (
-                        <span className="applied-badge-text">Applied</span>
+                        <span style={{ color: '#057642', fontSize: '12px', fontWeight: '600', marginTop: '4px', display: 'block' }}>Applied</span>
                     )}
                   </div>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      {/* Column 3: Right (Job Details) */}
-      <aside className="right-column">
-        {selectedJob ? (
-          <div className="linkedin-card" style={{ padding: '16px' }}>
-            <h2 style={{ fontSize: '18px', margin: '0 0 4px' }}>{selectedJob.title}</h2>
-            <p style={{ fontSize: '14px', margin: 0, fontWeight: 600 }}>{selectedJob.company}</p>
-            <p style={{ fontSize: '12px', color: 'var(--linkedin-secondary-text)', marginBottom: '16px' }}>{selectedJob.location}</p>
-            
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-              {isApplied(selectedJob.id) ? (
-                <button className="btn-secondary-round" disabled style={{ width: '100%' }}>Applied</button>
-              ) : (
-                <button 
-                  className="btn-primary-round" 
-                  style={{ width: '100%' }}
-                  onClick={() => handleApply(selectedJob.id)}
-                  disabled={applying}
-                >
-                  Easy Apply
-                </button>
-              )}
+        <aside className="right-column">
+          {selectedJob ? (
+            <div className="linkedin-card" style={{ padding: '16px' }}>
+              <h2 style={{ fontSize: '18px', margin: '0 0 4px' }}>{selectedJob.title}</h2>
+              <p style={{ fontSize: '14px', margin: 0 }}>{selectedJob.company} • {selectedJob.location}</p>
+              
+              <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+                {isApplied(selectedJob.id) ? (
+                  <button className="btn-secondary-round" disabled>Applied</button>
+                ) : (
+                  <button className="btn-primary-round" onClick={() => handleApply(selectedJob.id)} disabled={applying}>
+                    Easy Apply
+                  </button>
+                )}
+              </div>
+              <div style={{ marginTop: '24px' }}>
+                <h4 style={{ marginBottom: '8px' }}>About the job</h4>
+                <p style={{ fontSize: '14px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{selectedJob.description}</p>
+              </div>
             </div>
-            
-            <div style={{ borderTop: '1px solid var(--linkedin-border)', paddingTop: '16px' }}>
-                <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>Description</h4>
-                <p style={{ fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap', color: 'var(--linkedin-secondary-text)' }}>
-                    {selectedJob.description}
-                </p>
+          ) : (
+            <div className="linkedin-card" style={{ padding: '24px', textAlign: 'center' }}>
+              <FontAwesomeIcon icon={faBriefcase} size="3x" style={{ marginBottom: '16px', opacity: 0.2 }} />
+              <p>Select a job to view details</p>
             </div>
-          </div>
-        ) : (
-          <div className="linkedin-card" style={{ padding: '24px', textAlign: 'center', color: 'var(--linkedin-secondary-text)' }}>
-            <p>Select a job to view full details</p>
-          </div>
-        )}
-      </aside>
+          )}
+        </aside>
+      </div>
     </div>
   );
 };

@@ -6,7 +6,6 @@ import '../App.css';
 const ProfileViewsPage = () => {
   const [views, setViews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchViews();

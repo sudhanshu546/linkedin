@@ -28,7 +28,6 @@ const ProfileViewsPage = () => {
       setViews(viewsWithUsers);
     } catch (err) {
       console.error('Error fetching views:', err);
-      setError('Failed to load profile views.');
     } finally {
       setLoading(false);
     }

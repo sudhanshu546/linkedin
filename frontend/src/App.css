@@ -1,0 +1,434 @@
+/* --- GLOBAL THEME --- */
+:root {
+  --linkedin-blue: #0a66c2;
+  --linkedin-hover-blue: #004182;
+  --linkedin-bg: #f3f2ef;
+  --linkedin-text: #000000e6;
+  --linkedin-secondary-text: #00000099;
+  --linkedin-border: #e0e0e0;
+  --linkedin-card-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  --layout-max-width: 1128px;
+}
+
+body {
+  margin: 0;
+  background-color: var(--linkedin-bg);
+  color: var(--linkedin-text);
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+/* --- MASTER LAYOUT --- */
+.page-layout {
+  max-width: var(--layout-max-width);
+  margin: 24px auto;
+  display: grid;
+  gap: 24px;
+  padding: 0 12px;
+}
+
+.three-column-grid { grid-template-columns: 225px 555px 300px; }
+.two-column-layout { grid-template-columns: 1fr 300px; }
+.network-grid { grid-template-columns: 300px 1fr; }
+
+.linkedin-card {
+  background-color: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--linkedin-border);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+  margin-bottom: 8px;
+  overflow: visible;
+}
+
+/* --- NAVBAR --- */
+.linkedin-navbar {
+  background-color: #fff;
+  height: 52px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  border-bottom: 1px solid var(--linkedin-border);
+}
+
+.navbar-container {
+  width: 100%;
+  max-width: var(--layout-max-width);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+  height: 100%;
+}
+
+.navbar-left { display: flex; align-items: center; gap: 8px; }
+
+.navbar-search-refined {
+    background-color: #eef3f8;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    height: 34px;
+    width: 280px;
+}
+
+.navbar-search-refined input {
+    background: transparent;
+    border: none;
+    padding: 0 8px;
+    font-size: 14px;
+    outline: none;
+    width: 100%;
+}
+
+.navbar-right { display: flex; height: 100%; align-items: center; }
+
+.navbar-item {
+  color: var(--linkedin-secondary-text);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  min-width: 80px;
+  justify-content: center;
+  height: 52px;
+  cursor: pointer;
+}
+
+.navbar-item:hover { color: var(--linkedin-text); }
+
+/* --- PREMIUM ME DROPDOWN --- */
+.profile-dropdown-container {
+    position: relative;
+}
+
+.me-dropdown-refined {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: 52px;
+    right: 0;
+    width: 260px;
+    background: white;
+    border-radius: 8px 0 8px 8px;
+    box-shadow: var(--linkedin-card-shadow);
+    border: 1px solid var(--linkedin-border);
+    transition: all 0.15s ease;
+    z-index: 5000;
+    padding: 12px 0 0;
+}
+
+.profile-dropdown-container:hover .me-dropdown-refined {
+    visibility: visible;
+    opacity: 1;
+}
+
+.me-dropdown-header {
+    display: flex;
+    gap: 12px;
+    padding: 0 12px 12px;
+}
+
+.notif-avatar-dropdown {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    color: #adb3b8;
+    background: #f3f2ef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-info h4 { margin: 0; font-size: 16px; color: var(--linkedin-text); font-weight: 600; }
+.header-info p { margin: 2px 0 0; font-size: 12px; color: var(--linkedin-secondary-text); line-height: 1.3; }
+
+.view-profile-btn-pill {
+    display: block;
+    margin: 4px 12px 12px;
+    text-align: center;
+    border: 1px solid var(--linkedin-blue);
+    color: var(--linkedin-blue);
+    border-radius: 16px;
+    padding: 4px 0;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.view-profile-btn-pill:hover {
+    background-color: rgba(10, 102, 194, 0.1);
+    box-shadow: inset 0 0 0 1px var(--linkedin-blue);
+}
+
+.dropdown-section-refined {
+    padding: 8px 12px;
+    border-top: 1px solid var(--linkedin-border);
+}
+
+.dropdown-section-refined h5 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: var(--linkedin-text);
+    font-weight: 600;
+}
+
+.dropdown-link-item {
+    margin: 4px 0;
+    font-size: 14px;
+    color: var(--linkedin-secondary-text);
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+}
+
+.dropdown-link-item:hover {
+    text-decoration: underline;
+    color: var(--linkedin-blue);
+}
+
+.sign-out-footer {
+    border-top: 1px solid var(--linkedin-border);
+    padding: 12px;
+}
+
+.btn-sign-out-subtle {
+    background: none;
+    border: none;
+    color: var(--linkedin-secondary-text);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0;
+    width: 100%;
+    text-align: left;
+}
+
+.btn-sign-out-subtle:hover {
+    text-decoration: underline;
+}
+
+/* --- FEED & SIDEBAR --- */
+.profile-mini-card { text-align: center; }
+.mini-card-cover { height: 56px; background: linear-gradient(to right, #adb3b8, #cbd0d3); border-radius: 8px 8px 0 0; }
+.mini-avatar-home { width: 72px; height: 72px; border-radius: 50%; border: 2px solid white; margin-top: -36px; background: white; }
+
+.stat-row {
+    display: flex; justify-content: space-between;
+    padding: 12px; font-size: 12px; font-weight: 600;
+    color: var(--linkedin-secondary-text); text-decoration: none;
+    border-top: 1px solid #eee;
+}
+.stat-row:hover { background-color: #00000014; }
+
+/* --- CREATE POST --- */
+.create-post-card { padding: 12px 16px 8px !important; }
+.post-trigger-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.post-trigger-btn {
+    flex: 1; height: 48px; border: 1px solid var(--linkedin-border);
+    border-radius: 35px; background: white; text-align: left;
+    padding: 0 16px; color: var(--linkedin-secondary-text);
+    font-weight: 600; font-size: 14px; cursor: pointer;
+}
+
+.post-action-buttons-row { display: flex; justify-content: space-between; }
+.post-opt-btn { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; color: var(--linkedin-secondary-text); font-weight: 600; background: none; border: none; }
+.post-opt-btn:hover { background-color: #00000014; }
+.icon-photo { color: #70b5f9; }
+.icon-video { color: #7fc15e; }
+.icon-event { color: #e7a33e; }
+.icon-article { color: #f5987e; }
+
+/* --- BUTTONS --- */
+.btn-primary-round { background-color: var(--linkedin-blue); color: white; border-radius: 24px; font-weight: 600; padding: 6px 16px; border: none; cursor: pointer; }
+.btn-secondary-round { border: 1px solid var(--linkedin-blue); color: var(--linkedin-blue); background: white; border-radius: 24px; font-weight: 600; padding: 6px 16px; cursor: pointer; }
+
+/* --- Feed Card Surgical Refinement --- */
+.feed-post-card {
+    padding: 12px 16px 4px !important;
+}
+
+.post-author-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.post-author-info {
+    flex: 1;
+}
+
+.post-author-info h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--linkedin-text);
+}
+
+.post-author-info p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--linkedin-secondary-text);
+    line-height: 1.3;
+}
+
+.post-body-content {
+    margin-top: 8px;
+}
+
+.post-content-text {
+    font-size: 14px;
+    line-height: 1.42857;
+    white-space: pre-wrap;
+    margin-bottom: 12px;
+    color: var(--linkedin-text);
+}
+
+.post-image-full {
+    margin: 8px -16px 0; /* Bleed image to card edges */
+    background-color: #f9fafb;
+    border-top: 1px solid var(--linkedin-border);
+    border-bottom: 1px solid var(--linkedin-border);
+    display: flex;
+    justify-content: center;
+    max-height: 512px;
+    overflow: hidden;
+}
+
+.post-image-full img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.interaction-bar {
+    display: flex;
+    border-top: 1px solid var(--linkedin-border);
+    padding: 4px 0;
+    margin-top: 8px;
+}
+
+.interaction-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 4px;
+    color: var(--linkedin-secondary-text);
+    font-weight: 600;
+    font-size: 14px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.interaction-item:hover {
+    background-color: rgba(0,0,0,0.08);
+}
+
+.interaction-item.active {
+    color: var(--linkedin-blue);
+}
+
+
+/* --- High Fidelity Comment Input --- */
+.feed-comment-section {
+    padding: 8px 0 12px;
+    width: 100%;
+}
+
+.comment-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0 12px;
+}
+
+.integrated-comment-box {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.integrated-input {
+    width: 100%;
+    border: 1px solid #666;
+    border-radius: 24px;
+    padding: 10px 75px 10px 16px; /* Right padding for Post button */
+    font-size: 14px;
+    outline: none;
+    transition: box-shadow 0.15s;
+    font-family: inherit;
+    min-height: 40px;
+}
+
+.integrated-input:focus {
+    box-shadow: 0 0 0 1px #666 inset;
+}
+
+.integrated-post-btn {
+    position: absolute;
+    right: 6px;
+    background-color: var(--linkedin-blue);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    padding: 4px 12px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.integrated-post-btn:hover {
+    background-color: var(--linkedin-hover-blue);
+}
+
+
+/* --- Compact Comment Input --- */
+.integrated-input {
+    min-height: 34px !important; /* Smaller, more compact height */
+    padding: 6px 70px 6px 16px !important; /* Reduced vertical padding */
+    font-size: 14px;
+}
+
+.integrated-post-btn {
+    padding: 3px 10px !important; /* Smaller button to match input */
+    font-size: 13px !important;
+    right: 4px !important;
+}
+
+.comment-input-row {
+    padding: 2px 0 8px !important; /* Tighter row spacing */
+}
+
+
+/* --- Ultra Compact Comment Input (25px) --- */
+.integrated-input {
+    /* min-height: 25px !important; */
+    height: 25px !important;
+    padding: 0 65px 0 12px !important; /* Extremely tight padding for 25px height */
+    font-size: 13px !important; /* Slightly smaller text for fit */
+    line-height: 25px !important;
+}
+
+.integrated-post-btn {
+    height: 19px !important; /* Fits inside 25px with room */
+    padding: 0 8px !important;
+    font-size: 11px !important;
+    right: 3px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.comment-input-row {
+    padding: 0 0 6px !important;
+}
+

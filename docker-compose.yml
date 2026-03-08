@@ -1,4 +1,7 @@
+version: "3"
+
 services:
+
   kafka:
     image: confluentinc/cp-kafka:latest
     container_name: kafka
@@ -14,7 +17,6 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
-      # CLUSTER_ID is required for KRaft mode. Generating a random one.
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -31,3 +33,58 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
 
+
+  discovery-service:
+    build: ./discovery-service
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "9191:9191"
+    depends_on:
+      - discovery-service
+
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "8090:8090"
+    depends_on:
+      - discovery-service
+      - kafka
+
+
+  profile-service:
+    build: ./profile-service
+    container_name: profile-service
+    ports:
+      - "8700:8700"
+    depends_on:
+      - discovery-service
+      - kafka
+
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+    - ./keycloak:/opt/keycloak/data/import
+
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:3000"

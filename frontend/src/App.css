@@ -99,7 +99,7 @@ body {
 
 .navbar-item:hover { color: var(--linkedin-text); }
 
-/* --- PREMIUM ME DROPDOWN --- */
+/* --- ME DROPDOWN --- */
 .profile-dropdown-container {
     position: relative;
 }
@@ -241,194 +241,182 @@ body {
 .icon-event { color: #e7a33e; }
 .icon-article { color: #f5987e; }
 
+/* --- FEED CARD REFINEMENT --- */
+.feed-post-card { padding: 12px 16px 4px !important; }
+.post-author-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.post-author-info { flex: 1; }
+.post-author-info h4 { margin: 0; font-size: 14px; font-weight: 600; color: var(--linkedin-text); }
+.post-author-info p { margin: 0; font-size: 12px; color: var(--linkedin-secondary-text); line-height: 1.3; }
+.post-image-full {
+    margin: 8px -16px 0; background-color: #f9fafb;
+    border-top: 1px solid var(--linkedin-border); border-bottom: 1px solid var(--linkedin-border);
+    display: flex; justify-content: center; max-height: 512px; overflow: hidden;
+}
+.post-image-full img { max-width: 100%; height: auto; object-fit: contain; }
+.interaction-bar { display: flex; border-top: 1px solid var(--linkedin-border); padding: 4px 0; margin-top: 8px; }
+.interaction-item {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 10px; border-radius: 4px; color: var(--linkedin-secondary-text);
+    font-weight: 600; font-size: 14px; background: none; border: none; cursor: pointer;
+}
+.interaction-item:hover { background-color: rgba(0,0,0,0.08); }
+.interaction-item.active { color: var(--linkedin-blue); }
+
+/* --- COMMENT SECTION FIX --- */
+.feed-comment-section { padding: 8px 0 12px; width: 100%; box-sizing: border-box; }
+.comment-input-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 16px; }
+.integrated-comment-box { flex: 1; position: relative; display: flex; align-items: center; min-height: 40px; }
+.integrated-input {
+    width: 100%; border: 1px solid #666; border-radius: 20px;
+    padding: 10px 75px 10px 16px; font-size: 14px; outline: none; box-sizing: border-box;
+}
+.integrated-post-btn {
+    position: absolute; right: 6px; background-color: var(--linkedin-blue);
+    color: white; border: none; border-radius: 16px; padding: 4px 12px;
+    font-weight: 600; font-size: 14px; cursor: pointer;
+}
+
 /* --- BUTTONS --- */
 .btn-primary-round { background-color: var(--linkedin-blue); color: white; border-radius: 24px; font-weight: 600; padding: 6px 16px; border: none; cursor: pointer; }
 .btn-secondary-round { border: 1px solid var(--linkedin-blue); color: var(--linkedin-blue); background: white; border-radius: 24px; font-weight: 600; padding: 6px 16px; cursor: pointer; }
 
-/* --- Feed Card Surgical Refinement --- */
-.feed-post-card {
-    padding: 12px 16px 4px !important;
-}
+/* --- LOADING --- */
+.loading-container { display: flex; justify-content: center; align-items: center; min-height: 200px; width: 100%; }
+.spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--linkedin-blue); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-.post-author-row {
+/* --- REAL LINKEDIN AUTH STYLES (ISOLATED) --- */
+.auth-page-container {
+    background-color: #fff;
+    min-height: 100vh;
     display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    margin-bottom: 12px;
+    flex-direction: column;
 }
 
-.post-author-info {
-    flex: 1;
-}
-
-.post-author-info h4 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--linkedin-text);
-}
-
-.post-author-info p {
-    margin: 0;
-    font-size: 12px;
-    color: var(--linkedin-secondary-text);
-    line-height: 1.3;
-}
-
-.post-body-content {
-    margin-top: 8px;
-}
-
-.post-content-text {
-    font-size: 14px;
-    line-height: 1.42857;
-    white-space: pre-wrap;
-    margin-bottom: 12px;
-    color: var(--linkedin-text);
-}
-
-.post-image-full {
-    margin: 8px -16px 0; /* Bleed image to card edges */
-    background-color: #f9fafb;
-    border-top: 1px solid var(--linkedin-border);
-    border-bottom: 1px solid var(--linkedin-border);
-    display: flex;
-    justify-content: center;
-    max-height: 512px;
-    overflow: hidden;
-}
-
-.post-image-full img {
-    max-width: 100%;
-    height: auto;
-    object-fit: contain;
-}
-
-.interaction-bar {
-    display: flex;
-    border-top: 1px solid var(--linkedin-border);
-    padding: 4px 0;
-    margin-top: 8px;
-}
-
-.interaction-item {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px;
-    border-radius: 4px;
-    color: var(--linkedin-secondary-text);
-    font-weight: 600;
-    font-size: 14px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.15s;
-}
-
-.interaction-item:hover {
-    background-color: rgba(0,0,0,0.08);
-}
-
-.interaction-item.active {
-    color: var(--linkedin-blue);
-}
-
-
-/* --- High Fidelity Comment Input --- */
-.feed-comment-section {
-    padding: 8px 0 12px;
+.auth-nav-bar {
+    padding: 12px 24px;
     width: 100%;
-}
-
-.comment-input-row {
+    max-width: 1128px;
+    margin: 0 auto;
     display: flex;
-    gap: 8px;
-    align-items: center;
-    padding: 4px 0 12px;
 }
 
-.integrated-comment-box {
-    flex: 1;
-    position: relative;
+.linkedin-auth-logo {
+    color: #0a66c2;
+    font-size: 26px;
+    font-weight: 700;
+    text-decoration: none;
     display: flex;
     align-items: center;
 }
 
-.integrated-input {
-    width: 100%;
-    border: 1px solid #666;
-    border-radius: 24px;
-    padding: 10px 75px 10px 16px; /* Right padding for Post button */
-    font-size: 14px;
-    outline: none;
-    transition: box-shadow 0.15s;
-    font-family: inherit;
-    min-height: 40px;
-}
-
-.integrated-input:focus {
-    box-shadow: 0 0 0 1px #666 inset;
-}
-
-.integrated-post-btn {
-    position: absolute;
-    right: 6px;
-    background-color: var(--linkedin-blue);
+.linkedin-auth-logo span {
+    background-color: #0a66c2;
     color: white;
-    border: none;
-    border-radius: 16px;
-    padding: 4px 12px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 2px;
+    margin-left: 2px;
 }
 
-.integrated-post-btn:hover {
-    background-color: var(--linkedin-hover-blue);
-}
-
-
-/* --- Compact Comment Input --- */
-.integrated-input {
-    min-height: 34px !important; /* Smaller, more compact height */
-    padding: 6px 70px 6px 16px !important; /* Reduced vertical padding */
-    font-size: 14px;
-}
-
-.integrated-post-btn {
-    padding: 3px 10px !important; /* Smaller button to match input */
-    font-size: 13px !important;
-    right: 4px !important;
-}
-
-.comment-input-row {
-    padding: 2px 0 8px !important; /* Tighter row spacing */
-}
-
-
-/* --- Ultra Compact Comment Input (25px) --- */
-.integrated-input {
-    /* min-height: 25px !important; */
-    height: 25px !important;
-    padding: 0 65px 0 12px !important; /* Extremely tight padding for 25px height */
-    font-size: 13px !important; /* Slightly smaller text for fit */
-    line-height: 25px !important;
-}
-
-.integrated-post-btn {
-    height: 19px !important; /* Fits inside 25px with room */
-    padding: 0 8px !important;
-    font-size: 11px !important;
-    right: 3px !important;
+.auth-main-content {
+    flex: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding-bottom: 100px;
 }
 
-.comment-input-row {
-    padding: 0 0 6px !important;
+.auth-card-box {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.auth-card-box h1 {
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0 0 8px;
+}
+
+.auth-card-box p {
+    font-size: 14px;
+    color: var(--linkedin-secondary-text);
+    margin-bottom: 24px;
+}
+
+.auth-input-item {
+    margin-bottom: 20px;
+}
+
+.auth-input-item label {
+    display: block;
+    font-size: 14px;
+    color: rgba(0,0,0,0.6);
+    margin-bottom: 4px;
+}
+
+.auth-field-input {
+    width: 100%;
+    height: 48px;
+    border: 1px solid rgba(0,0,0,0.6);
+    border-radius: 4px;
+    padding: 0 12px;
+    font-size: 16px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.auth-field-input:focus {
+    border: 2px solid #0a66c2;
+    padding: 0 11px;
+}
+
+.auth-submit-btn-large {
+    width: 100%;
+    height: 48px;
+    background-color: #0a66c2;
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 24px;
+}
+
+.auth-submit-btn-large:hover { background-color: #004182; }
+
+/* Signup Headline */
+.auth-hero-headline {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 300;
+    margin: 0 0 32px;
+    color: rgba(0,0,0,0.9);
+}
+
+.auth-secondary-link {
+    display: block;
+    margin-top: 12px;
+    color: #0a66c2;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.auth-footer-text {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 16px;
+}
+
+.auth-footer-text a {
+    color: #0a66c2;
+    font-weight: 600;
+    text-decoration: none;
 }
 

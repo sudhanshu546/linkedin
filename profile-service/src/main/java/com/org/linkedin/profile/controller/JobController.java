@@ -68,12 +68,43 @@ public class JobController {
     }
 
     @GetMapping("/search")
-    public List<Job> searchJobs(@RequestParam String query) {
-        return jobRepository.findByTitleContainingIgnoreCaseOrCompanyContainingIgnoreCase(query, query);
+    public List<Job> searchJobs(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String jobType,
+            @RequestParam(required = false) String expLevel
+    ) {
+        return jobRepository.searchJobs(query, location, jobType, expLevel);
     }
 
     @GetMapping("/{id}")
     public Job getJobById(@PathVariable UUID id) {
         return jobRepository.findById(id).orElseThrow(() -> new RuntimeException("Job not found"));
+    }
+
+    @GetMapping("/my-postings")
+    public List<Job> getMyPostings(Authentication authentication) {
+        return jobRepository.findByPostedByOrderByCreatedAtDesc(getInternalUserId(authentication));
+    }
+
+    @PutMapping("/applications/{applicationId}/status")
+    public JobApplication updateApplicationStatus(
+            Authentication authentication,
+            @PathVariable UUID applicationId,
+            @RequestParam String status
+    ) {
+        JobApplication application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new RuntimeException("Application not found"));
+        
+        Job job = jobRepository.findById(application.getJobId())
+                .orElseThrow(() -> new RuntimeException("Job not found"));
+        
+        // Verify the user is the one who posted the job
+        if (!job.getPostedBy().equals(getInternalUserId(authentication))) {
+            throw new RuntimeException("Unauthorized to update application status");
+        }
+        
+        application.setStatus(status);
+        return applicationRepository.save(application);
     }
 }

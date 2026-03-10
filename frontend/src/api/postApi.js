@@ -1,15 +1,17 @@
 import api from './axiosConfig';
 
-export const getFeed = async () => {
-  const response = await api.get('/ps/feed');
+export const getFeed = async (page = 0, size = 10) => {
+  const response = await api.get(`/ps/feed?page=${page}&size=${size}`);
   return response.data;
 };
 
-export const createPost = async (content, image) => {
+export const createPost = async (content, images) => {
   const formData = new FormData();
   formData.append('content', content);
-  if (image) {
-    formData.append('image', image);
+  if (images && images.length > 0) {
+    images.forEach(image => {
+      formData.append('images', image);
+    });
   }
   
   const response = await api.post('/us/posts', formData, {

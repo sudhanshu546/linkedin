@@ -34,6 +34,7 @@ public class ActivityFeedConsumer {
                     .authorId(UUID.fromString(event.getUserId()))
                     .content(event.getContent())
                     .imageUrl(event.getImageUrl())
+                    .imageUrls(event.getImageUrls())
                     .createdAt(java.time.LocalDateTime.now())
                     .build();
             postRepository.save(post);

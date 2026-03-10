@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Feed from './Feed';
 import { Link } from 'react-router-dom';
 import { createPost } from '../api/postApi';
-import { getUserDetail } from '../api/userApi';
+import { useUser } from '../context/UserContext';
+import { useNotifications } from '../context/NotificationContext';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faImage, faVideo, faCalendarAlt, faNewspaper, faUserCircle } from '@fortawesome/free-solid-svg-icons';
@@ -10,30 +11,40 @@ import '../App.css';
 
 const HomePage = () => {
   const [postContent, setPostContent] = useState('');
-  const [postImage, setPostImage] = useState(null);
+  const [postImages, setPostImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
-  const [user, setUser] = useState(null);
+  const { user } = useUser();
+  const { notifications } = useNotifications();
 
-  useEffect(() => {
-    getUserDetail().then(res => setUser(res.result)).catch(e => console.error(e));
-  }, []);
+  const unreadNotifs = notifications.filter(n => n.status === 0).length;
 
   const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setPostImage(e.target.files[0]);
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setPostImages(prev => [...prev, ...files]);
+      
+      const newPreviews = files.map(file => URL.createObjectURL(file));
+      setImagePreviews(prev => [...prev, ...newPreviews]);
     }
+  };
+
+  const removeImage = (index) => {
+    setPostImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handlePostSubmit = async (e) => {
     e.preventDefault();
-    if (!postContent.trim() && !postImage) return;
+    if (!postContent.trim() && postImages.length === 0) return;
 
     setIsSubmitting(true);
     try {
-      await createPost(postContent, postImage);
+      await createPost(postContent, postImages);
       setPostContent('');
-      setPostImage(null);
+      setPostImages([]);
+      setImagePreviews([]);
       setFeedKey(prev => prev + 1);
       toast.success('Post shared successfully!');
     } catch (err) {
@@ -61,9 +72,9 @@ const HomePage = () => {
               <span>Who viewed your profile</span>
               <span className="stat-number">12</span>
             </Link>
-            <Link to="/mynetwork" className="stat-row">
-              <span>Connections</span>
-              <span className="stat-number">48</span>
+            <Link to="/notifications" className="stat-row">
+              <span>Unread notifications</span>
+              <span className="stat-number">{unreadNotifs}</span>
             </Link>
           </div>
         </div>
@@ -80,7 +91,7 @@ const HomePage = () => {
           </div>
           
           <form onSubmit={handlePostSubmit}>
-            {(postContent.trim() || postImage) && (
+            {(postContent.trim() || imagePreviews.length > 0) && (
                 <div className="expanded-post-area">
                     <textarea
                         placeholder="What's on your mind?"
@@ -89,6 +100,18 @@ const HomePage = () => {
                         className="post-textarea-main"
                         autoFocus
                     />
+                    
+                    {imagePreviews.length > 0 && (
+                      <div className="post-image-previews-grid">
+                        {imagePreviews.map((url, index) => (
+                          <div key={index} className="preview-container">
+                            <img src={url} alt={`Preview ${index}`} />
+                            <button type="button" className="remove-image-btn" onClick={() => removeImage(index)}>×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="post-submit-footer">
                         <button type="submit" className="btn-primary-round" disabled={isSubmitting}>
                             {isSubmitting ? 'Posting...' : 'Post'}
@@ -114,7 +137,7 @@ const HomePage = () => {
                 <FontAwesomeIcon icon={faNewspaper} className="icon-article" />
                 <span>Write article</span>
               </button>
-              <input type="file" id="post-image-input" style={{ display: 'none' }} onChange={handleImageChange} />
+              <input type="file" id="post-image-input" style={{ display: 'none' }} multiple onChange={handleImageChange} accept="image/*" />
             </div>
           </form>
         </div>

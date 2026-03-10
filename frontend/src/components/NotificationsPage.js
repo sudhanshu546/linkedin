@@ -1,46 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { getNotifications, markNotificationAsRead } from '../api/userApi';
+import React, { useState } from 'react';
+import { useNotifications } from '../context/NotificationContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell, faTimes } from '@fortawesome/free-solid-svg-icons';
 import '../App.css';
 
 const NotificationsPage = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { notifications, markAsRead } = useNotifications();
   const [selectedNotif, setSelectedNotif] = useState(null);
-
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const data = await getNotifications();
-      setNotifications(Array.isArray(data) ? data : (data.result || []));
-    } catch (err) {
-      console.error('Error fetching notifications:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleNotifClick = async (notif) => {
     setSelectedNotif(notif);
     if (notif.status === 0) {
-      try {
-        await markNotificationAsRead(notif.id);
-        setNotifications(notifications.map(n => n.id === notif.id ? { ...n, status: 1 } : n));
-      } catch (err) {
-        console.error('Error marking as read:', err);
-      }
+      markAsRead(notif.id);
     }
   };
-
-  if (loading) return (
-    <div className="loading-container">
-      <div className="spinner"></div>
-    </div>
-  );
 
   return (
     <div className="page-layout three-column-grid">

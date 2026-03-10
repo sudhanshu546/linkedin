@@ -57,9 +57,24 @@ public class ProfileServiceImpl implements ProfileService {
     public ProfileDTO saveOrUpdate(UUID userId, ProfileDTO profileDTO) {
 
         TUserDTO tUserDTO  = userService.getUserByKeyCloakId(userId).getBody().getResult();
-        Profile profile = profileMapper.toEntity(profileDTO);
-        profile.setUserId(tUserDTO.getId());
+        Profile existingProfile = profileRepo.findByUserId(tUserDTO.getId());
+        Profile profile;
+        if (existingProfile != null) {
+            profileMapper.partialUpdate(existingProfile, profileDTO);
+            profile = existingProfile;
+        } else {
+            profile = profileMapper.toEntity(profileDTO);
+            profile.setUserId(tUserDTO.getId());
+        }
         profile = profileRepo.save(profile);
         return profileMapper.toDto(profile);
+    }
+
+    @Override
+    public java.util.List<ProfileDTO> searchProfiles(String city, String state, String company, String headline) {
+        return profileRepo.searchProfiles(city, state, company, headline)
+                .stream()
+                .map(profileMapper::toDto)
+                .collect(java.util.stream.Collectors.toList());
     }
 }

@@ -79,4 +79,14 @@ public class ProfileController {
     ) {
         return profileService.getByUserId(userId);
     }
+
+    @GetMapping("/search")
+    public List<ProfileDTO> searchProfiles(
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String company,
+            @RequestParam(required = false) String headline
+    ) {
+        return profileService.searchProfiles(city, state, company, headline);
+    }
 }

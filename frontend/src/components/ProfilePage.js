@@ -127,6 +127,29 @@ const ProfilePage = () => {
           </div>
         </div>
 
+        {isOwnProfile && (
+          <div className="linkedin-card analytics-section">
+            <div className="card-header">
+              <h3>Analytics</h3>
+              <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0' }}><i className="fa fa-eye"></i> Private to you</p>
+            </div>
+            <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', padding: '16px', gap: '16px' }}>
+              <Link to="/profile-views" className="analytics-item" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <h4 style={{ margin: 0, fontSize: '16px' }}>24</h4>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>Profile viewers</p>
+              </Link>
+              <div className="analytics-item">
+                <h4 style={{ margin: 0, fontSize: '16px' }}>142</h4>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>Post impressions</p>
+              </div>
+              <div className="analytics-item">
+                <h4 style={{ margin: 0, fontSize: '16px' }}>12</h4>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>Search appearances</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="linkedin-card">
           <div className="card-header"><h3>About</h3></div>
           <div className="card-body"><p>{profile?.summary || 'No summary yet.'}</p></div>

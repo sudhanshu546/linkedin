@@ -33,6 +33,9 @@ public class Job {
 
     private String salary;
 
+    private String jobType; // FULL_TIME, PART_TIME, CONTRACT, REMOTE
+    private String experienceLevel; // ENTRY_LEVEL, MID_LEVEL, SENIOR
+
     @Column(name = "posted_by", nullable = false)
     private UUID postedBy; // Internal User ID
 

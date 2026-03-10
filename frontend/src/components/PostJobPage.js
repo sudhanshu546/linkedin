@@ -12,7 +12,9 @@ const PostJobPage = () => {
     company: '',
     location: '',
     description: '',
-    salary: ''
+    salary: '',
+    jobType: 'FULL_TIME',
+    experienceLevel: 'MID_LEVEL'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -115,6 +117,25 @@ const PostJobPage = () => {
                   onChange={handleChange} 
                   placeholder="e.g. $100,000 - $130,000 per year" 
                 />
+              </div>
+              <div className="input-row">
+                <div className="input-group flex-1">
+                  <label>Job Type*</label>
+                  <select name="jobType" value={formData.jobType} onChange={handleChange} required className="auth-field-input" style={{ height: '48px' }}>
+                      <option value="FULL_TIME">Full-time</option>
+                      <option value="PART_TIME">Part-time</option>
+                      <option value="CONTRACT">Contract</option>
+                      <option value="REMOTE">Remote</option>
+                  </select>
+                </div>
+                <div className="input-group flex-1">
+                  <label>Experience Level*</label>
+                  <select name="experienceLevel" value={formData.experienceLevel} onChange={handleChange} required className="auth-field-input" style={{ height: '48px' }}>
+                      <option value="ENTRY_LEVEL">Entry Level</option>
+                      <option value="MID_LEVEL">Mid Level</option>
+                      <option value="SENIOR">Senior</option>
+                  </select>
+                </div>
               </div>
             </div>
 

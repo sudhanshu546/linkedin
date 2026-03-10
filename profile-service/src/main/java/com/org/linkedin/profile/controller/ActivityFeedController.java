@@ -30,13 +30,18 @@ public class ActivityFeedController {
     private final ProfileRepo profileRepo;
 
     @GetMapping
-    public List<ActivityFeedItemDTO> getMyFeed(Authentication authentication) {
+    public List<ActivityFeedItemDTO> getMyFeed(
+            Authentication authentication,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size
+    ) {
         UUID keycloakId = UUID.fromString(authentication.getName());
         try {
             var userRes = userService.getUserByKeyCloakId(keycloakId);
             if (userRes != null && userRes.getBody() != null && userRes.getBody().getResult() != null) {
                 UUID internalUserId = userRes.getBody().getResult().getId();
-                List<ActivityFeedItem> feedItems = activityFeedService.getFeedForUser(internalUserId);
+                org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+                List<ActivityFeedItem> feedItems = activityFeedService.getFeedForUser(internalUserId, pageable);
                 
                 return feedItems.stream().map(item -> {
                     ActivityFeedItemDTO dto = ActivityFeedItemDTO.builder()
@@ -47,6 +52,7 @@ public class ActivityFeedController {
                             .content(item.getContent())
                             .type(item.getType())
                             .imageUrl(item.getImageUrl())
+                            .imageUrls(item.getImageUrls())
                             .timestamp(item.getTimestamp())
                             .build();
                     

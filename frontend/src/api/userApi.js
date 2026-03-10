@@ -6,6 +6,12 @@ export const searchUsers = async (query) => {
   return response.data;
 };
 
+export const searchProfiles = async (filters) => {
+  const params = new URLSearchParams(filters).toString();
+  const response = await api.get(`/ps/profiles/search?${params}`);
+  return response.data;
+};
+
 export const login = async (userName, password) => {
   const response = await api.post('/us/login/user', { userName, password });
   // The backend wraps AccessTokenResponse inside BaseResponse result
@@ -19,6 +25,11 @@ export const signup = async (userData) => {
 
 export const getUserDetail = async () => {
   const response = await api.get('/us/user/detail');
+  return response.data;
+};
+
+export const getAllUsers = async (page = 0, size = 10) => {
+  const response = await api.get(`/us/user/getAllUserDetail?page=${page}&size=${size}`);
   return response.data;
 };
 
@@ -58,8 +69,9 @@ export const postJob = async (jobData) => {
   return response.data;
 };
 
-export const searchJobs = async (query) => {
-  const response = await api.get(`/ps/jobs/search?query=${query}`);
+export const searchJobs = async (filters) => {
+  const params = new URLSearchParams(filters).toString();
+  const response = await api.get(`/ps/jobs/search?${params}`);
   return response.data;
 };
 
@@ -70,6 +82,21 @@ export const applyToJob = async (jobId) => {
 
 export const getMyApplications = async () => {
   const response = await api.get('/ps/jobs/my-applications');
+  return response.data;
+};
+
+export const getMyPostings = async () => {
+  const response = await api.get('/ps/jobs/my-postings');
+  return response.data;
+};
+
+export const getJobApplicants = async (jobId) => {
+  const response = await api.get(`/ps/jobs/${jobId}/applicants`);
+  return response.data;
+};
+
+export const updateApplicationStatus = async (applicationId, status) => {
+  const response = await api.put(`/ps/jobs/applications/${applicationId}/status?status=${status}`);
   return response.data;
 };
 

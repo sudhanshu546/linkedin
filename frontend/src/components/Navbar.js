@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -12,17 +12,15 @@ import {
   faCaretDown,
   faUserCircle
 } from '@fortawesome/free-solid-svg-icons';
-import { getUserDetail } from '../api/userApi';
+import { useUser } from '../context/UserContext';
+import { useNotifications } from '../context/NotificationContext';
 import '../App.css';
 
 const Navbar = ({ onLogout }) => {
   const [query, setQuery] = useState('');
-  const [user, setUser] = useState(null);
+  const { user } = useUser();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    getUserDetail().then(res => setUser(res.result)).catch(e => {});
-  }, []);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -70,7 +68,24 @@ const Navbar = ({ onLogout }) => {
             <span>Messaging</span>
           </Link>
           <Link to="/notifications" className="navbar-item">
-            <FontAwesomeIcon icon={faBell} size="lg" />
+            <div className="notif-icon-wrapper" style={{ position: 'relative' }}>
+                <FontAwesomeIcon icon={faBell} size="lg" />
+                {unreadCount > 0 && (
+                    <span className="notif-badge" style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        background: '#d11124',
+                        color: 'white',
+                        borderRadius: '50%',
+                        padding: '2px 6px',
+                        fontSize: '10px',
+                        fontWeight: 'bold'
+                    }}>
+                        {unreadCount}
+                    </span>
+                )}
+            </div>
             <span>Notifications</span>
           </Link>
           

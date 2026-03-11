@@ -17,6 +17,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { UserProvider } from './context/UserContext';
 import { NotificationProvider } from './context/NotificationContext';
 import './App.css';
+import './Forms.css';
 
 function App() {
   const navigate = useNavigate();

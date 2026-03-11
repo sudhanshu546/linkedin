@@ -7,11 +7,16 @@ import com.org.linkedin.profile.repo.PostRepository;
 import com.org.linkedin.profile.repo.ProfileViewRepository;
 import com.org.linkedin.profile.service.ProfileService;
 import com.org.linkedin.utility.client.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -63,7 +68,7 @@ public class ProfileController {
     @PostMapping
     public ProfileDTO saveOrUpdateProfile(
             Authentication authentication,
-            @RequestBody ProfileDTO profileDTO
+            @Valid @RequestBody ProfileDTO profileDTO
     ) {
 
         UUID userId = UUID.fromString(authentication.getName());
@@ -88,5 +93,17 @@ public class ProfileController {
             @RequestParam(required = false) String headline
     ) {
         return profileService.searchProfiles(city, state, company, headline);
+    }
+
+    @ResponseStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Map<String, String> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        return errors;
     }
 }

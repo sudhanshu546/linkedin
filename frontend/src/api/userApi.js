@@ -145,3 +145,8 @@ export const getPendingConnections = async () => {
   const response = await api.get('/ps/connections/pending');
   return response.data;
 };
+
+export const getMyConnections = async () => {
+  const response = await api.get('/ps/connections');
+  return response.data;
+};

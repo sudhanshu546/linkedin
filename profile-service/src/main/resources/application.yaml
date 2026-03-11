@@ -6,15 +6,15 @@ apiPrefix: /ps
 eureka:
   client:
     serviceUrl:
-      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+      defaultZone: ${EUREKA_URL:http://discovery-service:8761/eureka}
   instance:
-    hostname: localhost
+    hostname: ${SERVICE_HOSTNAME:profile-service}
 
 openapi:
   service:
     title: profile-service doc
     version: 1.0.0
-    url: https://localhost:8888/api
+    url: ${OPENAPI_URL:https://localhost:8888/api}
 
 spring:
   application:
@@ -31,7 +31,7 @@ spring:
       ddl-auto: update
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: ${DB_URI:jdbc:postgresql://localhost:5432/postgres}
+    url: ${DB_URI:jdbc:postgresql://postgres:5432/postgres}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     hikari:
@@ -46,10 +46,10 @@ spring:
       resourceserver:
         jwt:
           jws-algorithm: RS256
-          issuer-uri: http://localhost:8080/realms/linkedin
+          issuer-uri: ${KEYCLOAK_URL:http://keycloak:8080}/realms/linkedin
           jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

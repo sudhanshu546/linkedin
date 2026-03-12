@@ -26,7 +26,11 @@ const JobsPage = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [jobsList, apps] = await Promise.all([getJobs(), getMyApplications()]);
+      const [jobsRes, appsRes] = await Promise.all([getJobs(), getMyApplications()]);
+      
+      const jobsList = Array.isArray(jobsRes) ? jobsRes : (jobsRes?.result || []);
+      const apps = Array.isArray(appsRes) ? appsRes : (appsRes?.result || []);
+      
       setJobs(jobsList);
       setMyApps(apps);
       if (jobsList.length > 0) setSelectedJob(jobsList[0]);
@@ -46,9 +50,11 @@ const JobsPage = () => {
         Object.entries(searchFilters).filter(([_, v]) => v !== '')
       );
       
-      const data = Object.keys(activeFilters).length > 0 
+      const res = Object.keys(activeFilters).length > 0 
         ? await searchJobs(activeFilters) 
         : await getJobs();
+
+      const data = Array.isArray(res) ? res : (res?.result || []);
 
       setJobs(data);
       if (data.length > 0) setSelectedJob(data[0]);
@@ -69,7 +75,8 @@ const JobsPage = () => {
     try {
       await applyToJob(jobId);
       toast.success('Application submitted!');
-      const apps = await getMyApplications();
+      const appsRes = await getMyApplications();
+      const apps = Array.isArray(appsRes) ? appsRes : (appsRes?.result || []);
       setMyApps(apps);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to apply.');

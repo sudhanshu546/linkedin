@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
+import MessagingBar from './MessagingBar';
 import { ToastContainer } from 'react-toastify';
 import { getUserDetail } from '../api/userApi';
 // import SockJS from 'sockjs-client';
@@ -12,6 +13,7 @@ export const Layout = ({ children, onLogout }) => (
     <div className="layout-content">
         {children}
     </div>
+    <MessagingBar />
     <ToastContainer position="bottom-right" autoClose={3000} hideProgressBar={false} />
   </>
 );

@@ -10,7 +10,7 @@ const NotificationsPage = () => {
 
   const handleNotifClick = async (notif) => {
     setSelectedNotif(notif);
-    if (notif.status === 0) {
+    if (notif.status === 0 || notif.read === false) {
       markAsRead(notif.id);
     }
   };
@@ -43,7 +43,7 @@ const NotificationsPage = () => {
               {notifications.map((notif) => (
                 <div 
                   key={notif.id} 
-                  className={`notification-item ${notif.status === 0 ? 'unread' : ''}`}
+                  className={`notification-item ${notif.status === 0 || notif.read === false ? 'unread' : ''}`}
                   onClick={() => handleNotifClick(notif)}
                   style={{ cursor: 'pointer' }}
                 >
@@ -51,10 +51,14 @@ const NotificationsPage = () => {
                       <FontAwesomeIcon icon={faBell} />
                   </div>
                   <div className="notification-details" style={{ flex: 1, marginLeft: '12px' }}>
-                    <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>{notif.heading}</strong>
-                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--linkedin-text)' }}>{notif.notification}</p>
+                    <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>
+                      {notif.type || notif.heading || 'Notification'}
+                    </strong>
+                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--linkedin-text)' }}>
+                      {notif.message || notif.notification}
+                    </p>
                     <span style={{ fontSize: '12px', color: 'var(--linkedin-secondary-text)', marginTop: '4px', display: 'inline-block' }}>
-                      {new Date(notif.createdDate).toLocaleString()}
+                      {new Date(notif.createdAt || notif.createdDate).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -93,11 +97,17 @@ const NotificationsPage = () => {
                     <FontAwesomeIcon icon={faBell} size="lg" />
                 </div>
                 <div>
-                    <h2 style={{ fontSize: '20px', margin: 0 }}>{selectedNotif.heading}</h2>
-                    <p style={{ color: 'var(--linkedin-secondary-text)', fontSize: '14px' }}>{new Date(selectedNotif.createdDate).toLocaleString()}</p>
+                    <h2 style={{ fontSize: '20px', margin: 0 }}>
+                      {selectedNotif.type || selectedNotif.heading || 'Notification'}
+                    </h2>
+                    <p style={{ color: 'var(--linkedin-secondary-text)', fontSize: '14px' }}>
+                      {new Date(selectedNotif.createdAt || selectedNotif.createdDate).toLocaleString()}
+                    </p>
                 </div>
               </div>
-              <p style={{ fontSize: '16px', lineHeight: '1.6' }}>{selectedNotif.notification}</p>
+              <p style={{ fontSize: '16px', lineHeight: '1.6' }}>
+                {selectedNotif.message || selectedNotif.notification}
+              </p>
               
               <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button className="btn-primary-round" onClick={() => setSelectedNotif(null)}>Close</button>

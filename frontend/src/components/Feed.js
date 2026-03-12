@@ -1,18 +1,36 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getFeed, likePost, commentOnPost, getComments, getLikeCount } from '../api/postApi';
+import { getFeed, likePost, unlikePost, commentOnPost, deleteComment, getComments, getLikeCount } from '../api/postApi';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useUser } from '../context/UserContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faThumbsUp as farThumbsUp, 
   faCommentDots as farCommentDots, 
   faShareSquare as farShareSquare,
-  faPaperPlane
+  faPaperPlane,
 } from '@fortawesome/free-regular-svg-icons';
-import { faThumbsUp as fasThumbsUp, faEllipsisH, faUserCircle } from '@fortawesome/free-solid-svg-icons';
+import { faThumbsUp as fasThumbsUp, faEllipsisH, faUserCircle, faTrash } from '@fortawesome/free-solid-svg-icons';
 import '../App.css'; 
 
+const SkeletonPost = () => (
+  <div className="skeleton-post">
+    <div className="skeleton-header">
+      <div className="skeleton skeleton-avatar"></div>
+      <div>
+        <div className="skeleton skeleton-title"></div>
+        <div className="skeleton skeleton-subtitle"></div>
+      </div>
+    </div>
+    <div className="skeleton skeleton-text"></div>
+    <div className="skeleton skeleton-text"></div>
+    <div className="skeleton skeleton-text" style={{ width: '80%' }}></div>
+    <div className="skeleton skeleton-image"></div>
+  </div>
+);
+
 const Feed = () => {
+  const { user } = useUser();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -23,6 +41,7 @@ const Feed = () => {
   const [commentInputs, setCommentInputs] = useState({}); 
   const [postComments, setPostComments] = useState({}); 
   const [postStats, setPostStats] = useState({}); 
+  const [expandedPosts, setExpandedPosts] = useState({});
 
   const observer = useRef();
   const lastPostElementRef = useCallback(node => {
@@ -36,7 +55,7 @@ const Feed = () => {
     if (node) observer.current.observe(node);
   }, [loading, fetchingMore, hasMore]);
 
-  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:8081/uploads/'; 
+  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/'; 
 
   const fetchPostStats = useCallback(async (postId) => {
     try {
@@ -55,12 +74,26 @@ const Feed = () => {
 
     try {
       const data = await getFeed(pageNum, 10);
+      
+      if (!Array.isArray(data)) {
+        console.warn('Received non-array data from feed API:', data);
+        setHasMore(false);
+        return;
+      }
+
       if (data.length === 0) {
         setHasMore(false);
       } else {
-        setPosts(prev => pageNum === 0 ? data : [...prev, ...data]);
-        data.forEach(item => {
-          if (item.postId) fetchPostStats(item.postId);
+        const filteredData = data.filter(item => item.type === 'POST_CREATED');
+        setPosts(prev => pageNum === 0 ? filteredData : [...prev, ...filteredData]);
+        filteredData.forEach(item => {
+          if (item.postId) {
+            setPostStats(prev => ({
+              ...prev,
+              [item.postId]: { ...prev[item.postId], liked: item.likedByCurrentUser }
+            }));
+            fetchPostStats(item.postId);
+          }
         });
       }
     } catch (err) {
@@ -76,32 +109,35 @@ const Feed = () => {
   }, [page, fetchFeed]);
 
   const handleLike = async (postId) => {
-    // Optimistic UI
-    const currentStats = postStats[postId] || { likes: 0, liked: false };
-    if (currentStats.liked) return; // Prevent multiple likes locally
-
+    const isLiked = postStats[postId]?.liked;
+    
+    // Optimistic UI update
     setPostStats(prev => ({
         ...prev,
         [postId]: { 
             ...prev[postId], 
-            likes: (prev[postId]?.likes || 0) + 1, 
-            liked: true 
+            likes: (prev[postId]?.likes || 0) + (isLiked ? -1 : 1), 
+            liked: !isLiked 
         }
     }));
 
     try {
-      await likePost(postId);
-      toast.success('Post liked!');
+      if (isLiked) {
+        await unlikePost(postId);
+      } else {
+        await likePost(postId);
+      }
     } catch (err) {
       // Revert if failed
       setPostStats(prev => ({
         ...prev,
         [postId]: { 
             ...prev[postId], 
-            likes: (prev[postId]?.likes || 0) - 1, 
-            liked: false 
+            likes: (prev[postId]?.likes || 0) + (isLiked ? 1 : -1), 
+            liked: isLiked 
         }
       }));
+      toast.error('Failed to update like status');
     }
   };
 
@@ -141,16 +177,46 @@ const Feed = () => {
     } catch (err) {}
   };
 
-  if (loading) return (
-    <div className="loading-container">
-      <div className="spinner"></div>
+  const handleDeleteComment = async (postId, commentId) => {
+    if (!window.confirm('Delete this comment?')) return;
+    try {
+      await deleteComment(commentId);
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: (prev[postId] || []).filter(c => c.id !== commentId)
+      }));
+      setPostStats(prev => ({
+        ...prev,
+        [postId]: { ...prev[postId], comments: Math.max(0, (prev[postId]?.comments || 0) - 1) }
+      }));
+      toast.success('Comment deleted');
+    } catch (err) {
+      toast.error('Failed to delete comment');
+    }
+  };
+
+  if (loading && page === 0) return (
+    <div className="feed-skeleton-container" style={{ width: '100%' }}>
+      <SkeletonPost />
+      <SkeletonPost />
+      <SkeletonPost />
     </div>
   );
+
+  const toggleExpand = (postId) => {
+    setExpandedPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
+  };
 
   return (
     <div className="linkedin-feed">
       {posts.map((item, index) => {
         const isLastElement = posts.length === index + 1;
+        const isExpanded = expandedPosts[item.id];
+        const shouldTruncate = item.content && item.content.length > 200;
+        const displayContent = shouldTruncate && !isExpanded 
+          ? item.content.substring(0, 200) + '...' 
+          : item.content;
+
         return (
           <article 
             key={item.id} 
@@ -160,7 +226,7 @@ const Feed = () => {
             <div className="post-author-row">
               <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '48px', color: '#adb3b8' }} />
               <div className="post-author-info">
-                <Link to={`/profile/${item.actorProfileId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link to={`/profile/${item.actorId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <h4>{item.actorName || 'LinkedIn User'}</h4>
                 </Link>
                 <p>{item.actorDesignation || 'LinkedIn Member'}</p>
@@ -174,7 +240,12 @@ const Feed = () => {
             </div>
             
             <div className="post-body">
-              <p className="post-content-text">{item.content}</p>
+              <p className="post-content-text">
+                {displayContent}
+                {shouldTruncate && !isExpanded && (
+                  <button className="see-more-btn" onClick={() => toggleExpand(item.id)}>see more</button>
+                )}
+              </p>
               {item.imageUrls && item.imageUrls.length > 0 ? (
                 <div className={`post-images-grid images-count-${Math.min(item.imageUrls.length, 4)}`}>
                   {item.imageUrls.map((url, idx) => (
@@ -192,18 +263,20 @@ const Feed = () => {
               )}
             </div>
 
-            <div className="post-stats-bar" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: '12px', color: 'var(--linkedin-secondary-text)' }}>
-              {postStats[item.postId]?.likes > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <div style={{ background: '#378fe9', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
-                    <FontAwesomeIcon icon={fasThumbsUp} />
-                  </div>
-                  {postStats[item.postId].likes}
-                </div>
-              )}
-              {postStats[item.postId]?.comments > 0 && (
-                <div>{postStats[item.postId].comments} comments</div>
-              )}
+            <div className="post-stats-bar">
+              <div className="stat-item">
+                {(postStats[item.postId]?.likes > 0 || postStats[item.postId]?.liked) && (
+                  <>
+                    <div className="like-icon-circle">
+                      <FontAwesomeIcon icon={fasThumbsUp} />
+                    </div>
+                    <span>{postStats[item.postId]?.likes || 0}</span>
+                  </>
+                )}
+              </div>
+              <div className="stat-item" onClick={() => toggleComments(item.id, item.postId)}>
+                {postStats[item.postId]?.comments > 0 ? `${postStats[item.postId].comments} comments` : ''}
+              </div>
             </div>
             
             <div className="interaction-bar">
@@ -231,7 +304,7 @@ const Feed = () => {
             {activeFeedItemId === item.id && (
               <div className="feed-comment-section">
                 <div className="comment-input-row">
-                  <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8' }} />
+                  <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8', marginTop: '4px' }} />
                   <div className="integrated-comment-box">
                     <input 
                       type="text" 
@@ -247,13 +320,28 @@ const Feed = () => {
                 </div>
                 <div className="comments-display-list">
                   {(postComments[item.postId] || []).map(comment => (
-                    <div key={comment.id} className="comment-entry" style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                      <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8' }} />
-                      <div className="comment-bubble">
-                        <div className="comment-entry-header">
-                          <strong>User {comment.userId?.substring(0,8)}</strong>
+                    <div key={comment.id} className="comment-entry" style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'flex-start' }}>
+                      <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8', marginTop: '4px' }} />
+                      <div className="comment-bubble" style={{ position: 'relative' }}>
+                        <div className="comment-entry-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <strong style={{ fontSize: '13px' }}>{comment.userName || `User ${comment.userId?.substring(0,8)}`}</strong>
+                            <span style={{ fontSize: '11px', color: 'var(--linkedin-secondary-text)' }}>{comment.userDesignation || 'LinkedIn Member'}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--linkedin-secondary-text)' }}>{new Date(comment.createdAt).toLocaleDateString()}</span>
+                            {user && user.id === comment.userId && (
+                                <button 
+                                    onClick={() => handleDeleteComment(item.postId, comment.id)}
+                                    style={{ background: 'none', border: 'none', color: 'var(--linkedin-secondary-text)', cursor: 'pointer', padding: '4px' }}
+                                    title="Delete comment"
+                                >
+                                    <FontAwesomeIcon icon={faTrash} style={{ fontSize: '12px' }} />
+                                </button>
+                            )}
+                          </div>
                         </div>
-                        <p>{comment.content}</p>
+                        <p style={{ marginTop: '8px' }}>{comment.content}</p>
                       </div>
                     </div>
                   ))}

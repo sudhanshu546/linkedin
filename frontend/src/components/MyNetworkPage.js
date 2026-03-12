@@ -28,7 +28,7 @@ const MyNetworkPage = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('invitations'); // 'invitations' or 'connections'
+  const [view, setView] = useState('invitations'); 
 
   useEffect(() => {
     fetchInitialData();
@@ -40,11 +40,10 @@ const MyNetworkPage = () => {
     try {
       const [pendingData, allUsersRes, connectionsRes] = await Promise.all([
         getPendingConnections(),
-        getAllUsers(0, 50), // Fetch more to allow for filtering
+        getAllUsers(0, 50),
         getMyConnections()
       ]);
 
-      // 1. Process received invitations
       const requestsWithUsers = await Promise.all(
         pendingData.map(async (req) => {
           try {
@@ -57,7 +56,6 @@ const MyNetworkPage = () => {
       );
       setRequests(requestsWithUsers);
 
-      // 2. Process existing connections
       const connectedUsers = await Promise.all(
         connectionsRes.map(async (userId) => {
             try {
@@ -70,7 +68,6 @@ const MyNetworkPage = () => {
       );
       setConnections(connectedUsers);
 
-      // 3. Filter suggestions: Not self, Not already connected, Not already in pending requests
       const connectedIds = new Set(connectionsRes);
       const pendingIds = new Set(pendingData.map(r => r.requesterId));
       
@@ -78,7 +75,7 @@ const MyNetworkPage = () => {
         u.id !== currentUser.id && 
         !connectedIds.has(u.id) &&
         !pendingIds.has(u.id)
-      ).slice(0, 12); // Limit to 12 for display
+      ).slice(0, 12);
 
       setSuggestions(filteredSuggestions);
     } catch (err) {
@@ -94,7 +91,6 @@ const MyNetworkPage = () => {
       await respondToConnectionRequest(id, accept);
       setRequests(requests.filter(req => req.id !== id));
       if (accept) {
-          // Re-fetch to update connections list
           fetchInitialData();
       }
       toast.success(accept ? 'Accepted!' : 'Ignored.');
@@ -107,7 +103,6 @@ const MyNetworkPage = () => {
       try {
           await sendConnectionRequest(userId);
           toast.success('Connection request sent!');
-          // Update local state to show "Pending" or remove from suggestions
           setSuggestions(suggestions.filter(s => s.id !== userId));
       } catch (err) {
           toast.error('Already sent or failed.');
@@ -122,7 +117,6 @@ const MyNetworkPage = () => {
 
   return (
     <div className="page-layout network-grid">
-      {/* Left Sidebar */}
       <aside className="network-sidebar">
         <div className="linkedin-card network-sidebar-card">
           <div className="card-header" style={{ padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
@@ -183,9 +177,7 @@ const MyNetworkPage = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="network-main">
-        {/* Invitations View */}
         {view === 'invitations' && (
             <div className="linkedin-card" style={{ marginBottom: '16px' }}>
                 <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -220,7 +212,6 @@ const MyNetworkPage = () => {
             </div>
         )}
 
-        {/* Connections View */}
         {view === 'connections' && (
             <div className="linkedin-card" style={{ marginBottom: '16px' }}>
                 <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0' }}>
@@ -253,7 +244,6 @@ const MyNetworkPage = () => {
             </div>
         )}
 
-        {/* Suggestions Section */}
         <div className="linkedin-card">
             <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between' }}>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '400' }}>People you may know</h3>

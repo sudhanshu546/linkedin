@@ -11,7 +11,9 @@ import {
   getConnectionStatus,
   respondToConnectionRequest,
   cancelConnectionRequest,
-  getUserPosts
+  getUserPosts,
+  getProfileViewCount,
+  // getProfileViewTrends
 } from '../api/userApi';
 import '../App.css';
 
@@ -21,6 +23,7 @@ const ProfilePage = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewCount, setViewCount] = useState(0);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null); 
   const [actionLoading, setActionLoading] = useState(false);
@@ -49,6 +52,8 @@ const ProfilePage = () => {
         userRes = await getUserDetail();
         profData = await getProfile();
         posts = await getUserPosts(userRes.result.id);
+        const vc = await getProfileViewCount();
+        setViewCount(vc || 0);
       } else {
         userRes = await getUserById(effectiveUserId);
         const internalId = userRes.result.id;
@@ -71,6 +76,8 @@ const ProfilePage = () => {
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
+
+  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
 
   const handleAction = async (actionFunc, ...args) => {
     setActionLoading(true);
@@ -135,7 +142,7 @@ const ProfilePage = () => {
             </div>
             <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', padding: '16px', gap: '16px' }}>
               <Link to="/profile-views" className="analytics-item" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <h4 style={{ margin: 0, fontSize: '16px' }}>24</h4>
+                <h4 style={{ margin: 0, fontSize: '16px' }}>{viewCount}</h4>
                 <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>Profile viewers</p>
               </Link>
               <div className="analytics-item">
@@ -159,8 +166,19 @@ const ProfilePage = () => {
           <div className="card-header"><h3>Activity</h3><p style={{ fontSize: '12px' }}>{userPosts.length} posts</p></div>
           <div className="card-body">
             {userPosts.map(post => (
-              <div key={post.postId} style={{ padding: '12px 0', borderBottom: '1px solid #eee' }}>
-                <p style={{ fontSize: '14px' }}>{post.content.substring(0, 150)}...</p>
+              <div key={post.postId} style={{ padding: '16px 0', borderBottom: '1px solid #eee' }}>
+                <p style={{ fontSize: '14px', marginBottom: '12px' }}>{post.content}</p>
+                {post.imageUrls && post.imageUrls.length > 0 ? (
+                    <div className="post-images-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '8px' }}>
+                        {post.imageUrls.map((url, idx) => (
+                            <img key={idx} src={`${IMAGE_BASE_URL}${url}`} alt="Post" style={{ width: '100%', borderRadius: '4px' }} />
+                        ))}
+                    </div>
+                ) : (
+                    post.imageUrl && (
+                        <img src={`${IMAGE_BASE_URL}${post.imageUrl}`} alt="Post" style={{ maxWidth: '100%', borderRadius: '4px' }} />
+                    )
+                )}
               </div>
             ))}
           </div>

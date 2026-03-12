@@ -12,10 +12,12 @@ import JobsPage from './components/JobsPage';
 import PostJobPage from './components/PostJobPage';
 import JobManagementPage from './components/JobManagementPage';
 import SearchResultsPage from './components/SearchResultsPage';
+import MessagingPage from './components/MessagingPage';
 import AuthWrapper, { Layout } from './components/AuthWrapper';
 import ErrorBoundary from './components/ErrorBoundary';
 import { UserProvider } from './context/UserContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ChatProvider } from './context/ChatContext';
 import './App.css';
 import './Forms.css';
 
@@ -32,7 +34,8 @@ function App() {
     <ErrorBoundary>
       <UserProvider>
         <NotificationProvider>
-          <div className="App">
+          <ChatProvider>
+            <div className="App">
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
@@ -148,11 +151,22 @@ function App() {
                 </AuthWrapper>
               }
             />
+            <Route
+              path="/messaging"
+              element={
+                <AuthWrapper>
+                  <Layout onLogout={handleLogout}>
+                    <MessagingPage />
+                  </Layout>
+                </AuthWrapper>
+              }
+            />
             
             <Route path="/" element={<AuthWrapper><Navigate to="/home" replace /></AuthWrapper>} />
             <Route path="*" element={<AuthWrapper><Navigate to="/home" replace /></AuthWrapper>} />
           </Routes>
         </div>
+        </ChatProvider>
       </NotificationProvider>
     </UserProvider>
     </ErrorBoundary>

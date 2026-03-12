@@ -27,12 +27,22 @@ export const likePost = async (postId) => {
   return response.data;
 };
 
+export const unlikePost = async (postId) => {
+  const response = await api.delete(`/us/posts/${postId}/unlike`);
+  return response.data;
+};
+
 export const commentOnPost = async (postId, content) => {
   const response = await api.post(`/us/posts/${postId}/comments`, content, {
     headers: {
       'Content-Type': 'text/plain',
     },
   });
+  return response.data;
+};
+
+export const deleteComment = async (commentId) => {
+  const response = await api.delete(`/us/posts/comments/${commentId}`);
   return response.data;
 };
 

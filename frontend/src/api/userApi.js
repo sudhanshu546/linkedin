@@ -60,43 +60,43 @@ export const getUserPosts = async (userId) => {
 
 // Job APIs
 export const getJobs = async () => {
-  const response = await api.get('/ps/jobs');
+  const response = await api.get('/js/jobs');
   return response.data;
 };
 
 export const postJob = async (jobData) => {
-  const response = await api.post('/ps/jobs', jobData);
+  const response = await api.post('/js/jobs', jobData);
   return response.data;
 };
 
 export const searchJobs = async (filters) => {
   const params = new URLSearchParams(filters).toString();
-  const response = await api.get(`/ps/jobs/search?${params}`);
+  const response = await api.get(`/js/jobs/search?${params}`);
   return response.data;
 };
 
 export const applyToJob = async (jobId) => {
-  const response = await api.post(`/ps/jobs/${jobId}/apply`);
+  const response = await api.post(`/js/jobs/${jobId}/apply`);
   return response.data;
 };
 
 export const getMyApplications = async () => {
-  const response = await api.get('/ps/jobs/my-applications');
+  const response = await api.get('/js/jobs/my-applications');
   return response.data;
 };
 
 export const getMyPostings = async () => {
-  const response = await api.get('/ps/jobs/my-postings');
+  const response = await api.get('/js/jobs/my-postings');
   return response.data;
 };
 
 export const getJobApplicants = async (jobId) => {
-  const response = await api.get(`/ps/jobs/${jobId}/applicants`);
+  const response = await api.get(`/js/jobs/${jobId}/applicants`);
   return response.data;
 };
 
 export const updateApplicationStatus = async (applicationId, status) => {
-  const response = await api.put(`/ps/jobs/applications/${applicationId}/status?status=${status}`);
+  const response = await api.put(`/js/jobs/applications/${applicationId}/status?status=${status}`);
   return response.data;
 };
 
@@ -122,22 +122,32 @@ export const cancelConnectionRequest = async (connectionId) => {
 };
 
 export const updateProfile = async (profileData) => {
-  const response = await api.put('/ps/profiles/me', profileData);
+  const response = await api.post('/ps/profiles', profileData);
   return response.data;
 };
 
 export const getNotifications = async () => {
-  const response = await api.get('/ps/notifications');
+  const response = await api.get('/ns/notifications');
   return response.data;
 };
 
 export const markNotificationAsRead = async (id) => {
-  const response = await api.put(`/ps/notifications/${id}/read`);
+  const response = await api.put(`/ns/notifications/${id}/read`);
   return response.data;
 };
 
 export const getProfileViews = async () => {
   const response = await api.get('/ps/profiles/me/views');
+  return response.data;
+};
+
+export const getProfileViewCount = async () => {
+  const response = await api.get('/ps/profiles/me/views/count');
+  return response.data;
+};
+
+export const getProfileViewTrends = async () => {
+  const response = await api.get('/ps/profiles/me/views/trends');
   return response.data;
 };
 

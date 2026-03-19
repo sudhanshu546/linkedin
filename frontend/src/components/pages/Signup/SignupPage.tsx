@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { signup } from '../api/userApi';
-import '../App.css';
+import { userSignup, userLogin } from '../../../api/userApi';
+import { setTokens } from '../../../utils/storageUtils';
+import { toast } from 'react-toastify';
+import '../../../App.css';
 
-const SignupPage = () => {
+const SignupPage: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -12,15 +14,38 @@ const SignupPage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSignup = async (e) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      await signup({ firstName, lastName, email, password });
-      navigate('/login');
-    } catch (err) {
-      setError('Registration failed. Please check your details.');
+      // 1. Perform Signup
+      await userSignup({ 
+        firstName, 
+        lastName, 
+        email, 
+        password 
+      });
+      
+      toast.success('Account created successfully! Logging you in...');
+
+      // 2. Perform Auto-Login
+      const loginRes = await userLogin({
+        userName: email, // Backend login takes (userName, password)
+        password 
+      });
+
+      if (loginRes && loginRes.result) {
+        setTokens(loginRes.result);
+        navigate('/home');
+      } else {
+        navigate('/login');
+      }
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      const errorMessage = err.response?.data?.message || 'Registration failed. Please check your details.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

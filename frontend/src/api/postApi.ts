@@ -18,18 +18,18 @@ import {
 export const getFeed = async (
   page = PAGINATION.DEFAULT_PAGE,
   size = PAGINATION.FEED_SIZE
-): Promise<ApiResponse<PaginatedResponse<Post>>> => {
+): Promise<PaginatedResponse<Post>> => {
   const response = await api.get<ApiResponse<PaginatedResponse<Post>>>(
     API_ENDPOINTS.FEED.GET,
     { params: { page, size } }
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
  * Create a new post
  */
-export const createPost = async (data: PostCreateRequest): Promise<ApiResponse<Post>> => {
+export const createPost = async (data: PostCreateRequest): Promise<Post> => {
   const formData = new FormData();
   formData.append('content', data.content);
 
@@ -48,27 +48,27 @@ export const createPost = async (data: PostCreateRequest): Promise<ApiResponse<P
       },
     }
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
  * Like a post
  */
-export const likePost = async (postId: string): Promise<ApiResponse<any>> => {
+export const likePost = async (postId: string): Promise<any> => {
   const response = await api.post<ApiResponse<any>>(
     API_ENDPOINTS.FEED.LIKE_POST(postId)
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
  * Unlike a post
  */
-export const unlikePost = async (postId: string): Promise<ApiResponse<any>> => {
+export const unlikePost = async (postId: string): Promise<any> => {
   const response = await api.delete<ApiResponse<any>>(
-    API_ENDPOINTS.FEED.LIKE_POST(postId)
+    API_ENDPOINTS.FEED.UNLIKE_POST(postId)
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
@@ -77,7 +77,7 @@ export const unlikePost = async (postId: string): Promise<ApiResponse<any>> => {
 export const commentOnPost = async (
   postId: string,
   content: string
-): Promise<ApiResponse<Comment>> => {
+): Promise<Comment> => {
   const response = await api.post<ApiResponse<Comment>>(
     API_ENDPOINTS.FEED.COMMENT(postId),
     content,
@@ -87,37 +87,47 @@ export const commentOnPost = async (
       },
     }
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
  * Get comments for a post
  */
-export const getComments = async (postId: string): Promise<ApiResponse<Comment[]>> => {
+export const getComments = async (postId: string): Promise<Comment[]> => {
   const response = await api.get<ApiResponse<Comment[]>>(
     API_ENDPOINTS.FEED.GET_COMMENTS(postId)
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
  * Get like count for a post
  */
-export const getLikeCount = async (postId: string): Promise<ApiResponse<number>> => {
+export const getLikeCount = async (postId: string): Promise<number> => {
   const response = await api.get<ApiResponse<number>>(
     API_ENDPOINTS.FEED.GET_LIKE_COUNT(postId)
   );
-  return response.data;
+  return response.data.result;
+};
+
+/**
+ * Delete a comment
+ */
+export const deleteComment = async (commentId: string): Promise<any> => {
+  const response = await api.delete<ApiResponse<any>>(
+    API_ENDPOINTS.FEED.DELETE_COMMENT(commentId)
+  );
+  return response.data.result;
 };
 
 /**
  * Delete a post
  */
-export const deletePost = async (postId: string): Promise<ApiResponse<any>> => {
+export const deletePost = async (postId: string): Promise<any> => {
   const response = await api.delete<ApiResponse<any>>(
     `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}`
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
@@ -126,10 +136,10 @@ export const deletePost = async (postId: string): Promise<ApiResponse<any>> => {
 export const editPost = async (
   postId: string,
   content: string
-): Promise<ApiResponse<Post>> => {
+): Promise<Post> => {
   const response = await api.put<ApiResponse<Post>>(
     `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}`,
     { content }
   );
-  return response.data;
+  return response.data.result;
 };

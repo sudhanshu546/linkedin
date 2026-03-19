@@ -12,7 +12,7 @@ export const API_ENDPOINTS = {
   USER: {
     LOGIN: '/us/login/user',
     SIGNUP: '/us/user/add',
-    USER_DETAIL: '/us/user/detail',
+    USER_DETAIL: '/us/user/me',
     GET_ALL_USERS: '/us/user/getAllUserDetail',
     GET_BY_ID: (userId: string) => `/us/user/user/${userId}`,
     GET_BY_INTERNAL_ID: (userId: string) => `/us/user/${userId}`,
@@ -33,7 +33,9 @@ export const API_ENDPOINTS = {
     GET: '/ps/feed',
     CREATE_POST: '/us/posts',
     LIKE_POST: (postId: string) => `/us/posts/${postId}/like`,
+    UNLIKE_POST: (postId: string) => `/us/posts/${postId}/unlike`,
     COMMENT: (postId: string) => `/us/posts/${postId}/comments`,
+    DELETE_COMMENT: (commentId: string) => `/us/posts/comments/${commentId}`,
     GET_COMMENTS: (postId: string) => `/us/posts/${postId}/comments`,
     GET_LIKE_COUNT: (postId: string) => `/us/posts/${postId}/likes/count`,
   },
@@ -62,23 +64,22 @@ export const API_ENDPOINTS = {
   NETWORK: {
     GET_CONNECTIONS: '/ps/connections',
     SEND_CONNECTION_REQUEST: '/ps/connections/request',
-    ACCEPT_CONNECTION: (connectionId: string) => `/ps/connections/${connectionId}/accept`,
-    REJECT_CONNECTION: (connectionId: string) => `/ps/connections/${connectionId}/reject`,
+    RESPOND_CONNECTION: (connectionId: string) => `/ps/connections/${connectionId}/respond`,
     GET_PENDING_REQUESTS: '/ps/connections/pending',
-    GET_SUGGESTIONS: '/ps/connections/suggestions',
+    GET_SUGGESTIONS: '/ps/connections/recommendations',
   },
 
   // View Profile Service
   PROFILE_VIEWS: {
-    GET_VIEWS: '/ps/profile-views',
+    GET_VIEWS: '/ps/profiles/me/views',
+    GET_COUNT: '/ps/profiles/me/views/count',
+    GET_TRENDS: '/ps/profiles/me/views/trends',
   },
 
   // Chat/Messaging Service (cs/*)
   CHAT: {
-    GET_CONVERSATIONS: '/cs/conversations',
-    GET_MESSAGES: (conversationId: string) => `/cs/conversations/${conversationId}/messages`,
-    SEND_MESSAGE: (conversationId: string) => `/cs/conversations/${conversationId}/messages`,
-    CREATE_CONVERSATION: '/cs/conversations',
+    GET_MESSAGES: (recipientId: string) => `/cs/messages/${recipientId}`,
+    MARK_READ: (senderId: string) => `/cs/messages/read/${senderId}`,
   },
 };
 

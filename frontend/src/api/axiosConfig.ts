@@ -4,6 +4,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { toast } from 'react-toastify';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from '../utils/storageUtils';
 
@@ -42,34 +43,47 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = getRefreshToken();
+      const currentRefreshToken = getRefreshToken();
 
-      if (refreshToken) {
+      if (currentRefreshToken) {
         try {
-          // Use API_BASE_URL directly to ensure we hit the correct port
+          // We use a direct axios call here to avoid an interceptor loop
           const response = await axios.post(
-            `${API_BASE_URL}${API_ENDPOINTS.USER.REFRESH_TOKEN}?refreshToken=${refreshToken}`
+            `${API_BASE_URL}${API_ENDPOINTS.USER.REFRESH_TOKEN}`,
+            {},
+            { params: { refreshToken: currentRefreshToken } }
           );
 
           if (response.data?.result) {
-            const { access_token, refresh_token } = response.data.result;
-            setTokens({ access_token, refresh_token, token_type: 'Bearer', expires_in: 3600 });
-
-            // Retry the original request with new token
-            originalRequest.headers.Authorization = `Bearer ${access_token}`;
+            const { accessToken, refreshToken } = response.data.result;
+            setTokens({ access_token: accessToken, refresh_token: refreshToken });
+            
+            // Update the header for the original request and retry
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return api(originalRequest);
           }
         } catch (refreshError: any) {
-          // Token refresh failed - clear tokens and redirect to login
+          toast.error('Your session has expired. Please log in again.');
           clearTokens();
-          window.location.href = '/login';
+          // Use a slight delay to allow the toast to be seen before redirecting
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1000);
           return Promise.reject(refreshError);
         }
       } else {
-        // No refresh token available - redirect to login
+        // No refresh token available
         clearTokens();
         window.location.href = '/login';
       }
+    }
+
+    // Global error feedback for non-401 errors or failed retries
+    if (error.response && error.response.status !== 401) {
+        const message = (error.response.data as any)?.message || 'An error occurred';
+        toast.error(message);
+    } else if (!error.response) {
+        toast.error('Network error. Please check your connection.');
     }
 
     return Promise.reject(error);

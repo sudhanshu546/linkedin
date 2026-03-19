@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { getJobs, searchJobs, applyToJob, getMyApplications } from '../api/userApi';
+import { getAllJobs, searchJobs, applyForJob, getMyApplications, getMyPostings } from '../../../api/jobApi';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch, faBuilding, faBriefcase } from '@fortawesome/free-solid-svg-icons';
-import '../App.css';
+import { faSearch, faBuilding, faBriefcase, faList, faClipboardCheck } from '@fortawesome/free-solid-svg-icons';
+import '../../../App.css';
 
-const JobsPage = () => {
-  const [jobs, setJobs] = useState([]);
-  const [myApps, setMyApps] = useState([]);
-  const [selectedJob, setSelectedJob] = useState(null);
+const JobsPage: React.FC = () => {
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [myApps, setMyApps] = useState<any[]>([]);
+  const [myPostings, setMyPostings] = useState<any[]>([]);
+  const [selectedJob, setSelectedJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'all' | 'postings'>('all');
   const [searchFilters, setSearchFilters] = useState({
       query: '',
       location: '',
@@ -19,21 +21,25 @@ const JobsPage = () => {
   });
   const [applying, setApplying] = useState(false);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
-
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [jobsRes, appsRes] = await Promise.all([getJobs(), getMyApplications()]);
+      const [jobsRes, appsRes, postingsRes] = await Promise.all([
+          getAllJobs(), 
+          getMyApplications(),
+          getMyPostings()
+      ]);
       
-      const jobsList = Array.isArray(jobsRes) ? jobsRes : (jobsRes?.result || []);
-      const apps = Array.isArray(appsRes) ? appsRes : (appsRes?.result || []);
+      const jobsList = jobsRes?.content || [];
+      const apps = appsRes || [];
+      const postings = postingsRes || [];
       
       setJobs(jobsList);
       setMyApps(apps);
-      if (jobsList.length > 0) setSelectedJob(jobsList[0]);
+      setMyPostings(postings);
+      
+      if (activeTab === 'all' && jobsList.length > 0) setSelectedJob(jobsList[0]);
+      else if (activeTab === 'postings' && postings.length > 0) setSelectedJob(postings[0]);
     } catch (err) {
       toast.error('Failed to load jobs.');
     } finally {
@@ -41,22 +47,28 @@ const JobsPage = () => {
     }
   };
 
-  const handleSearch = async (e) => {
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const handleSearch = async (e: React.FormEvent) => {
     e?.preventDefault();
     setLoading(true);
     try {
-      // Filter out empty strings
-      const activeFilters = Object.fromEntries(
-        Object.entries(searchFilters).filter(([_, v]) => v !== '')
-      );
-      
-      const res = Object.keys(activeFilters).length > 0 
-        ? await searchJobs(activeFilters) 
-        : await getJobs();
+      const filters = {
+          query: searchFilters.query,
+          location: searchFilters.location,
+          jobType: searchFilters.jobType,
+      };
 
-      const data = Array.isArray(res) ? res : (res?.result || []);
+      const res = (filters.query.trim() || filters.location.trim() || filters.jobType)
+        ? await searchJobs(filters) 
+        : await getAllJobs();
+
+      const data = res?.content || [];
 
       setJobs(data);
+      setActiveTab('all');
       if (data.length > 0) setSelectedJob(data[0]);
       else setSelectedJob(null);
     } catch (err) {
@@ -66,26 +78,33 @@ const JobsPage = () => {
     }
   };
 
-  const onFilterChange = (e) => {
+  const onFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       setSearchFilters({ ...searchFilters, [e.target.name]: e.target.value });
   };
 
-  const handleApply = async (jobId) => {
+  const handleApply = async (jobId: string) => {
     setApplying(true);
     try {
-      await applyToJob(jobId);
+      await applyForJob(jobId);
       toast.success('Application submitted!');
-      const appsRes = await getMyApplications();
-      const apps = Array.isArray(appsRes) ? appsRes : (appsRes?.result || []);
-      setMyApps(apps);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to apply.');
+      const apps = await getMyApplications();
+      setMyApps(apps || []);
+    } catch (err: any) {
+      toast.error('Failed to apply.');
     } finally {
       setApplying(false);
     }
   };
 
-  const isApplied = (jobId) => myApps.some(app => app.jobId === jobId);
+  const handleTabChange = (tab: 'all' | 'postings') => {
+      setActiveTab(tab);
+      const list = tab === 'all' ? jobs : myPostings;
+      if (list.length > 0) setSelectedJob(list[0]);
+      else setSelectedJob(null);
+  };
+
+  const isApplied = (jobId: string) => myApps.some((app: any) => app.jobId === jobId);
+  const isOwner = (jobId: string) => myPostings.some((p: any) => p.id === jobId);
 
   if (loading) return (
     <div className="loading-container">
@@ -93,18 +112,56 @@ const JobsPage = () => {
     </div>
   );
 
+  const displayedJobs = activeTab === 'all' ? jobs : myPostings;
+
   return (
     <div className="page-layout three-column-grid">
       {/* Left Column */}
       <aside className="left-column">
-        <div className="linkedin-card" style={{ padding: '16px' }}>
-          <h3 style={{ fontSize: '16px', marginBottom: '16px', fontWeight: 600 }}>Manage my jobs</h3>
-          <div style={{ fontSize: '14px', color: 'var(--linkedin-blue)', fontWeight: 600, cursor: 'pointer', marginBottom: '12px' }}>
-            My Applications ({myApps.length})
+        <div className="linkedin-card" style={{ padding: '0' }}>
+          <div style={{ padding: '16px', borderBottom: '1px solid #eee' }}>
+            <h3 style={{ fontSize: '16px', margin: 0, fontWeight: 600 }}>Manage my jobs</h3>
+          </div>
+          <div 
+            onClick={() => handleTabChange('all')}
+            style={{ 
+                padding: '12px 16px', 
+                fontSize: '14px', 
+                color: activeTab === 'all' ? 'black' : '#666', 
+                fontWeight: activeTab === 'all' ? 700 : 500, 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: activeTab === 'all' ? '#f3f2ef' : 'transparent',
+                borderLeft: activeTab === 'all' ? '4px solid #057642' : '4px solid transparent'
+            }}
+          >
+            <FontAwesomeIcon icon={faList} />
+            <span>My Applications ({myApps.length})</span>
+          </div>
+          <div 
+            onClick={() => handleTabChange('postings')}
+            style={{ 
+                padding: '12px 16px', 
+                fontSize: '14px', 
+                color: activeTab === 'postings' ? 'black' : '#666', 
+                fontWeight: activeTab === 'postings' ? 700 : 500, 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: activeTab === 'postings' ? '#f3f2ef' : 'transparent',
+                borderLeft: activeTab === 'postings' ? '4px solid #057642' : '4px solid transparent'
+            }}
+          >
+            <FontAwesomeIcon icon={faClipboardCheck} />
+            <span>My Postings ({myPostings.length})</span>
           </div>
           <Link to="/jobs/manage" style={{ textDecoration: 'none' }}>
-              <div style={{ fontSize: '14px', color: 'var(--linkedin-blue)', fontWeight: 600, cursor: 'pointer' }}>
-              Job Management (Recruiter)
+              <div style={{ padding: '12px 16px', fontSize: '14px', color: 'var(--linkedin-blue)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FontAwesomeIcon icon={faBriefcase} />
+                <span>Recruiter Dashboard</span>
               </div>
           </Link>
         </div>
@@ -144,17 +201,6 @@ const JobsPage = () => {
                       <option value="CONTRACT">Contract</option>
                       <option value="REMOTE">Remote</option>
                   </select>
-                  <select 
-                    name="expLevel" 
-                    value={searchFilters.expLevel} 
-                    onChange={onFilterChange}
-                    style={{ padding: '6px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', color: '#666' }}
-                  >
-                      <option value="">Experience</option>
-                      <option value="ENTRY_LEVEL">Entry Level</option>
-                      <option value="MID_LEVEL">Mid Level</option>
-                      <option value="SENIOR">Senior</option>
-                  </select>
                   <button type="submit" className="btn-primary-round" style={{ padding: '4px 16px', fontSize: '14px' }}>Search</button>
               </div>
           </form>
@@ -162,13 +208,17 @@ const JobsPage = () => {
 
         <div className="linkedin-card">
           <div className="card-header" style={{ borderBottom: '1px solid #eee', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: '16px' }}>Jobs for you</h3>
+            <h3 style={{ margin: 0, fontSize: '16px' }}>
+                {activeTab === 'all' ? 'Jobs for you' : 'Your Job Postings'}
+            </h3>
             <Link to="/jobs/post" className="btn-secondary-round" style={{ textDecoration: 'none', fontSize: '14px', padding: '4px 12px' }}>Post a job</Link>
           </div>
           <div className="job-items-list">
-            {jobs.length === 0 ? (
-               <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>No jobs found.</div>
-            ) : jobs.map(job => (
+            {displayedJobs.length === 0 ? (
+               <div style={{ padding: '24px', textAlign: 'center', color: '#666' }}>
+                   {activeTab === 'all' ? 'No jobs found.' : "You haven't posted any jobs yet."}
+               </div>
+            ) : displayedJobs.map(job => (
               <div 
                 key={job.id} 
                 className={`job-item ${selectedJob?.id === job.id ? 'active' : ''}`}
@@ -182,9 +232,14 @@ const JobsPage = () => {
                   <h4 style={{ margin: '0 0 2px', fontSize: '14px', color: 'var(--linkedin-blue)', fontWeight: 600 }}>{job.title}</h4>
                   <p style={{ margin: 0, fontSize: '13px' }}>{job.company}</p>
                   <p style={{ margin: 0, fontSize: '12px', color: 'var(--linkedin-secondary-text)' }}>{job.location}</p>
-                  {isApplied(job.id) && (
-                      <span style={{ color: '#057642', fontSize: '12px', fontWeight: '600', marginTop: '4px', display: 'block' }}>Applied</span>
-                  )}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    {isApplied(job.id) && (
+                        <span style={{ color: '#057642', fontSize: '12px', fontWeight: '600' }}>Applied</span>
+                    )}
+                    {isOwner(job.id) && (
+                        <span style={{ color: '#0a66c2', fontSize: '12px', fontWeight: '600' }}>Your Posting</span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -200,7 +255,9 @@ const JobsPage = () => {
             <p style={{ fontSize: '14px', margin: 0 }}>{selectedJob.company} • {selectedJob.location}</p>
             
             <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
-              {isApplied(selectedJob.id) ? (
+              {isOwner(selectedJob.id) ? (
+                <Link to="/jobs/manage" className="btn-primary-round" style={{ textDecoration: 'none' }}>Manage Candidates</Link>
+              ) : isApplied(selectedJob.id) ? (
                 <button className="btn-secondary-round" disabled style={{ opacity: 0.6 }}>Applied</button>
               ) : (
                 <button className="btn-primary-round" onClick={() => handleApply(selectedJob.id)} disabled={applying}>

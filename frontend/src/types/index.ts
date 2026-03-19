@@ -11,12 +11,12 @@ export interface ApiResponse<T> {
 }
 
 export interface PaginatedResponse<T> {
-  content: T[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-  isLast: boolean;
+  result: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages?: number;
+  isLast?: boolean;
 }
 
 // Auth Types
@@ -76,6 +76,20 @@ export interface Profile {
   skills?: Skill[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ProfileDTO {
+  id: string;
+  userId: string;
+  headline: string;
+  summary: string;
+  skills: string;
+  city: string;
+  state: string;
+  experienceYears: number;
+  currentCompany: string;
+  designation: string;
+  coverImageUrl?: string;
 }
 
 export interface Experience {
@@ -201,27 +215,34 @@ export interface Notification {
   message: string;
   relatedUserId?: string;
   relatedPostId?: string;
-  isRead: boolean;
+  read: boolean;
   createdAt: string;
+}
+
+// Chat Types
+export interface ChatMessage {
+  id?: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  isRead: boolean;
+  timestamp: string;
 }
 
 // Context Types
 export interface UserContextType {
   user: UserDetail | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (userName: string, password: string) => Promise<void>;
+  loading: boolean;
+  setUser: (user: UserDetail | null) => void;
+  fetchUser: () => Promise<void>;
   logout: () => void;
-  updateUser: (user: UserDetail) => void;
 }
 
 export interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
-  isLoading: boolean;
   fetchNotifications: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
-  deleteNotification: (notificationId: string) => Promise<void>;
 }
 
 // State Types
@@ -249,4 +270,8 @@ export interface SearchFilter {
   size?: number;
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
+  title?: string;
+  company?: string;
+  location?: string;
+  jobType?: string;
 }

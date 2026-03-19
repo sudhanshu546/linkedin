@@ -22,6 +22,8 @@ const Navbar = ({ onLogout }) => {
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
 
+  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (query.trim()) {
@@ -91,7 +93,11 @@ const Navbar = ({ onLogout }) => {
           
           <div className="navbar-item profile-dropdown-container">
             <div className="dropdown-trigger">
-                <FontAwesomeIcon icon={faUser} size="lg" />
+                {user?.profileImageUrl ? (
+                    <img src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} alt="Me" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                    <FontAwesomeIcon icon={faUser} size="lg" />
+                )}
                 <div className="me-text-wrap">
                     <span>Me</span>
                     <FontAwesomeIcon icon={faCaretDown} />
@@ -101,7 +107,11 @@ const Navbar = ({ onLogout }) => {
             <div className="me-dropdown-refined">
               <div className="me-dropdown-header">
                 <div className="notif-avatar-dropdown">
-                    <FontAwesomeIcon icon={faUserCircle} size="3x" />
+                    {user?.profileImageUrl ? (
+                        <img src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} alt="Me" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                        <FontAwesomeIcon icon={faUserCircle} size="3x" />
+                    )}
                 </div>
                 <div className="header-info">
                     <h4>{user ? `${user.firstName} ${user.lastName}` : 'LinkedIn User'}</h4>
@@ -119,8 +129,8 @@ const Navbar = ({ onLogout }) => {
 
               <div className="dropdown-section-refined">
                 <h5>Manage</h5>
-                <span className="dropdown-link-item">Posts & Activity</span>
-                <span className="dropdown-link-item">Job Posting Account</span>
+                <Link to="/profile" className="dropdown-link-item" style={{ textDecoration: 'none' }}>Posts & Activity</Link>
+                <Link to="/jobs/manage" className="dropdown-link-item" style={{ textDecoration: 'none' }}>Job Posting Account</Link>
               </div>
 
               <div className="sign-out-footer">

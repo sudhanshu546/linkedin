@@ -4,7 +4,7 @@
 
 import api from './axiosConfig';
 import { API_ENDPOINTS } from '../constants/api';
-import { Notification, ApiResponse, PaginatedResponse } from '../types';
+import { Notification, ApiResponse } from '../types';
 
 /**
  * Get all notifications
@@ -12,22 +12,22 @@ import { Notification, ApiResponse, PaginatedResponse } from '../types';
 export const getAllNotifications = async (
   page = 0,
   size = 10
-): Promise<ApiResponse<PaginatedResponse<Notification>>> => {
-  const response = await api.get<ApiResponse<PaginatedResponse<Notification>>>(
+): Promise<Notification[]> => {
+  const response = await api.get<ApiResponse<Notification[]>>(
     API_ENDPOINTS.NOTIFICATIONS.GET_ALL,
     { params: { page, size } }
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
  * Get unread notifications
  */
-export const getUnreadNotifications = async (): Promise<ApiResponse<Notification[]>> => {
+export const getUnreadNotifications = async (): Promise<Notification[]> => {
   const response = await api.get<ApiResponse<Notification[]>>(
     API_ENDPOINTS.NOTIFICATIONS.GET_UNREAD
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
@@ -35,11 +35,11 @@ export const getUnreadNotifications = async (): Promise<ApiResponse<Notification
  */
 export const markNotificationAsRead = async (
   notificationId: string
-): Promise<ApiResponse<Notification>> => {
-  const response = await api.patch<ApiResponse<Notification>>(
+): Promise<any> => {
+  const response = await api.put<ApiResponse<any>>(
     API_ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId)
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
@@ -47,19 +47,19 @@ export const markNotificationAsRead = async (
  */
 export const deleteNotification = async (
   notificationId: string
-): Promise<ApiResponse<any>> => {
+): Promise<any> => {
   const response = await api.delete<ApiResponse<any>>(
     API_ENDPOINTS.NOTIFICATIONS.DELETE(notificationId)
   );
-  return response.data;
+  return response.data.result;
 };
 
 /**
  * Mark all notifications as read
  */
-export const markAllAsRead = async (): Promise<ApiResponse<any>> => {
+export const markAllAsRead = async (): Promise<any> => {
   const response = await api.patch<ApiResponse<any>>(
     `${API_ENDPOINTS.NOTIFICATIONS.GET_ALL}/read-all`
   );
-  return response.data;
+  return response.data.result;
 };

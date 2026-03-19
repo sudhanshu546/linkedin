@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { postJob } from '../api/userApi';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { createJob, updateJob } from '../api/jobApi';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBriefcase, faUserCircle, faLightbulb, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
@@ -10,6 +10,10 @@ import '../Forms.css';
 
 const PostJobPage = () => {
   const { user } = useUser();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const editJob = location.state?.editJob;
+
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -21,7 +25,20 @@ const PostJobPage = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
-  const navigate = useNavigate();
+
+  useEffect(() => {
+      if (editJob) {
+          setFormData({
+              title: editJob.title || '',
+              company: editJob.company || '',
+              location: editJob.location || '',
+              description: editJob.description || '',
+              salary: editJob.salary || '',
+              jobType: editJob.jobType || 'FULL_TIME',
+              experienceLevel: editJob.experienceLevel || 'MID_LEVEL'
+          });
+      }
+  }, [editJob]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -50,14 +67,19 @@ const PostJobPage = () => {
 
     setIsSubmitting(true);
     try {
-      await postJob(formData);
-      toast.success('Job posted successfully!');
-      navigate('/jobs');
+      if (editJob) {
+          await updateJob(editJob.id, formData);
+          toast.success('Job updated successfully!');
+      } else {
+          await createJob(formData);
+          toast.success('Job posted successfully!');
+      }
+      navigate('/jobs/manage');
     } catch (err) {
       if (err.response && err.response.data && typeof err.response.data === 'object') {
         setErrors(err.response.data);
       }
-      toast.error('Failed to post job. Please check the form.');
+      toast.error(`Failed to ${editJob ? 'update' : 'post'} job. Please check the form.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -92,7 +114,7 @@ const PostJobPage = () => {
             <div className="form-header-icon">
                 <FontAwesomeIcon icon={faBriefcase} />
             </div>
-            <h2>Post a Job</h2>
+            <h2>{editJob ? 'Edit Job Posting' : 'Post a Job'}</h2>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -183,9 +205,9 @@ const PostJobPage = () => {
             </div>
 
             <div className="form-footer-actions">
-              <button type="button" onClick={() => navigate('/jobs')} className="btn-secondary-pill">Cancel</button>
+              <button type="button" onClick={() => navigate('/jobs/manage')} className="btn-secondary-pill">Cancel</button>
               <button type="submit" className="btn-primary-pill" disabled={isSubmitting}>
-                {isSubmitting ? 'Posting...' : 'Post Job'}
+                {isSubmitting ? (editJob ? 'Updating...' : 'Posting...') : (editJob ? 'Update Job' : 'Post Job')}
               </button>
             </div>
           </form>

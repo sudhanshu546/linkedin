@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { searchUsers, searchProfiles, getUserByInternalId, searchJobs } from '../api/userApi';
+import { searchUsers, getUserById } from '../api/userApi';
+import { searchProfiles } from '../api/profileApi';
+import { searchJobs } from '../api/jobApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUserCircle, faSearch, faFilter, faBriefcase, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
 import '../App.css';
@@ -31,19 +33,29 @@ const SearchResultsPage = () => {
             let finalPeople = [];
             if (city || company || headline) {
                 const profileFilters = { city, company, headline };
-                const profs = await searchProfiles(profileFilters);
-                finalPeople = await Promise.all(profs.map(async (p) => {
-                    try {
-                        const u = await getUserByInternalId(p.userId);
-                        return { ...u.result, profile: p, resultType: 'people' };
-                    } catch (e) {
-                        return { id: p.userId, firstName: 'User', lastName: '', profile: p, resultType: 'people' };
-                    }
-                }));
+                try {
+                    const profs = await searchProfiles(profileFilters);
+                    const profsList = Array.isArray(profs) ? profs : (profs?.result || []);
+                    
+                    finalPeople = await Promise.all(profsList.map(async (p) => {
+                        try {
+                            const u = await getUserById(p.userId);
+                            return { ...u.result, profile: p, resultType: 'people' };
+                        } catch (e) {
+                            return { id: p.userId, firstName: 'User', lastName: '', profile: p, resultType: 'people' };
+                        }
+                    }));
+                } catch (e) {
+                    console.error("Profile search failed:", e);
+                }
             } else if (query) {
-                const users = await searchUsers(query);
-                const usersList = Array.isArray(users) ? users : (users.result || []);
-                finalPeople = usersList.map(u => ({ ...u, resultType: 'people' }));
+                try {
+                    const users = await searchUsers(query);
+                    const usersList = Array.isArray(users) ? users : (users.result || []);
+                    finalPeople = usersList.map(u => ({ ...u, resultType: 'people' }));
+                } catch (e) {
+                    console.error("User search failed:", e);
+                }
             }
             return finalPeople;
         };

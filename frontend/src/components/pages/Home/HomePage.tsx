@@ -1,26 +1,32 @@
-import React, { useState } from 'react';
-import Feed from './Feed';
-import { Link } from 'react-router-dom';
-import { createPost } from '../api/postApi';
-import { useUser } from '../context/UserContext';
-import { useNotifications } from '../context/NotificationContext';
+import React, { useState, useEffect } from 'react';
+import Feed from '../Feed/Feed';
+import { Link, useLocation } from 'react-router-dom';
+import { createPost } from '../../../api/postApi';
+import { useUser } from '../../../context/UserContext';
+import { useNotifications } from '../../../context/NotificationContext';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faImage, faVideo, faCalendarAlt, faNewspaper, faUserCircle } from '@fortawesome/free-solid-svg-icons';
-import '../App.css';
+import '../../../App.css';
 
-const HomePage = () => {
+const HomePage: React.FC = () => {
   const [postContent, setPostContent] = useState('');
-  const [postImages, setPostImages] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const [postImages, setPostImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
   const { user } = useUser();
-  const { notifications } = useNotifications();
+  const { unreadCount } = useNotifications();
+  const location = useLocation();
 
-  const unreadNotifs = notifications.filter(n => n.status === 0).length;
+  useEffect(() => {
+    if (location.state?.openCreatePost) {
+        // Trigger post creation area
+        setPostContent(' '); // Setting a space triggers the expanded view
+    }
+  }, [location.state]);
 
-  const handleImageChange = (e) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
       setPostImages(prev => [...prev, ...files]);
@@ -30,18 +36,18 @@ const HomePage = () => {
     }
   };
 
-  const removeImage = (index) => {
+  const removeImage = (index: number) => {
     setPostImages(prev => prev.filter((_, i) => i !== index));
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handlePostSubmit = async (e) => {
+  const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!postContent.trim() && postImages.length === 0) return;
 
     setIsSubmitting(true);
     try {
-      await createPost(postContent, postImages);
+      await createPost({ content: postContent, images: postImages });
       setPostContent('');
       setPostImages([]);
       setImagePreviews([]);
@@ -54,6 +60,8 @@ const HomePage = () => {
     }
   };
 
+  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
+
   return (
     <div className="page-layout three-column-grid">
       {/* Left Column */}
@@ -61,7 +69,16 @@ const HomePage = () => {
         <div className="linkedin-card profile-mini-card">
           <div className="mini-card-cover"></div>
           <div className="mini-card-content">
-            <FontAwesomeIcon icon={faUserCircle} className="mini-avatar-home" style={{ fontSize: '72px', color: '#adb3b8' }} />
+            {user?.profileImageUrl ? (
+                <img 
+                    src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} 
+                    alt="Profile" 
+                    className="mini-avatar-home"
+                    style={{ objectFit: 'cover' }}
+                />
+            ) : (
+                <FontAwesomeIcon icon={faUserCircle} className="mini-avatar-home" style={{ fontSize: '72px', color: '#adb3b8' }} />
+            )}
             <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
               <h3>{user ? `${user.firstName} ${user.lastName}` : 'Welcome back!'}</h3>
             </Link>
@@ -74,7 +91,7 @@ const HomePage = () => {
             </Link>
             <Link to="/notifications" className="stat-row">
               <span>Unread notifications</span>
-              <span className="stat-number">{unreadNotifs}</span>
+              <span className="stat-number">{unreadCount}</span>
             </Link>
           </div>
         </div>
@@ -84,8 +101,16 @@ const HomePage = () => {
       <main className="feed-column">
         <div className="linkedin-card create-post-card">
           <div className="post-trigger-row">
-            <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '48px', color: '#adb3b8' }} />
-            <button className="post-trigger-btn" onClick={() => document.getElementById('post-image-input').click()}>
+            {user?.profileImageUrl ? (
+                <img 
+                    src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} 
+                    alt="Me" 
+                    style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }}
+                />
+            ) : (
+                <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '48px', color: '#adb3b8' }} />
+            )}
+            <button className="post-trigger-btn" onClick={() => document.getElementById('post-image-input')?.click()}>
               Start a post
             </button>
           </div>

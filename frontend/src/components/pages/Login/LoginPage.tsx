@@ -1,27 +1,36 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { login } from '../api/userApi';
-import '../App.css';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { userLogin } from '../../../api/userApi';
+import { setTokens } from '../../../utils/storageUtils';
+import { useUser } from '../../../context/UserContext';
+import '../../../App.css';
 
-const LoginPage = () => {
-  const [userName, setuserName] = useState('');
+const LoginPage: React.FC = () => {
+  const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const { refetchUser } = useUser();
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const response = await login(userName, password);
-      const data = response.result; 
-      localStorage.setItem('accessToken', data.access_token);
-      localStorage.setItem('refreshToken', data.refresh_token);
-      navigate('/home');
-    } catch (err) {
-      setError('Invalid email or password.');
+      const response = await userLogin({ userName, password });
+      const data = response.result;
+      if (data) {
+        setTokens(data);
+        await refetchUser(); // Re-fetch user after login
+        const from = location.state?.from?.pathname || '/home';
+        navigate(from, { replace: true });
+      } else {
+        setError('Unexpected response from server.');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -49,7 +58,7 @@ const LoginPage = () => {
                 type="text"
                 className="auth-field-input"
                 value={userName}
-                onChange={(e) => setuserName(e.target.value)}
+                onChange={(e) => setUserName(e.target.value)}
                 required
               />
             </div>

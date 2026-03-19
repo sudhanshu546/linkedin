@@ -5,6 +5,11 @@
 ### Current Status: **STABLE** (after fixes)
 
 ### Improvements Made:
+- **Notification Flow Completed:**
+    - Updated `PostLikedEvent` and `CommentCreatedEvent` in `common-models` to include `postAuthorId`.
+    - Modified `PostService` in `user-service` to populate `postAuthorId` from post metadata before publishing Kafka events.
+    - Updated `NotificationConsumer` in `notification-service` to process `post-liked`, `comment-created`, and `profile-viewed` events.
+    - Added retry configuration for all notification topics in `notification-service`.
 - **Fixed Compilation Errors:** Resolved type mismatches in `ActivityFeedService` (converted `String` to `UUID` for user IDs) and corrected a method name in `CommentCreatedEvent` consumer logic.
 - **Kafka Configuration Optimization:**
     - Switched from a mixed Zookeeper/KRaft configuration to a pure **KRaft mode** in `docker-compose.yml`.
@@ -13,9 +18,8 @@
     - Standardized Kafka listeners for both internal (Docker network) and external (localhost) access.
 
 ### Missing/Required Configurations:
-- **Notification Recipient Mapping:** The `Notification` entity currently lacks a `userId` or `recipientId` field, meaning notifications are saved but not linked to specific users. This needs to be added to the `common-models` and `profile-service`.
-- **Dynamic Topic Creation:** Ensure that Kafka topics are automatically created or a script is provided to initialize them (`post-created`, `post-liked`, `comment-created`, `profile-viewed`, `connection-requested`).
 - **Error Handling/DLQ:** Consider implementing Dead Letter Queues (DLQ) for failed message processing in consumers.
+- **Frontend Real-time Sync:** Notification and Chat UI still need STOMP/WebSocket connection to show updates without refresh.
 
 ---
 

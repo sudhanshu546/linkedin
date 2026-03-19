@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getFeed, likePost, unlikePost, commentOnPost, deleteComment, getComments, getLikeCount } from '../api/postApi';
+import { getFeed, likePost, unlikePost, commentOnPost, deleteComment, getComments, getLikeCount } from '../../../api/postApi';
+import { getUserPosts } from '../../../api/profileApi'; // Moved to profileApi.ts
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useUser } from '../context/UserContext';
+import { useUser } from '../../../context/UserContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faThumbsUp as farThumbsUp, 
@@ -11,9 +12,14 @@ import {
   faPaperPlane,
 } from '@fortawesome/free-regular-svg-icons';
 import { faThumbsUp as fasThumbsUp, faEllipsisH, faUserCircle, faTrash } from '@fortawesome/free-solid-svg-icons';
-import '../App.css'; 
+import '../../../App.css'; 
 
-const SkeletonPost = () => (
+interface FeedProps {
+  userId?: string | null;
+  limit?: number | null;
+}
+
+const SkeletonPost: React.FC = () => (
   <div className="skeleton-post">
     <div className="skeleton-header">
       <div className="skeleton skeleton-avatar"></div>
@@ -29,26 +35,26 @@ const SkeletonPost = () => (
   </div>
 );
 
-const Feed = () => {
+const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
   const { user } = useUser();
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [fetchingMore, setFetchingMore] = useState(false);
   
-  const [activeFeedItemId, setActiveFeedItemId] = useState(null);
-  const [commentInputs, setCommentInputs] = useState({}); 
-  const [postComments, setPostComments] = useState({}); 
-  const [postStats, setPostStats] = useState({}); 
-  const [expandedPosts, setExpandedPosts] = useState({});
+  const [activeFeedItemId, setActiveFeedItemId] = useState<string | null>(null);
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({}); 
+  const [postComments, setPostComments] = useState<Record<string, any[]>>({}); 
+  const [postStats, setPostStats] = useState<Record<string, any>>({}); 
+  const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
 
-  const observer = useRef();
-  const lastPostElementRef = useCallback(node => {
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastPostElementRef = useCallback((node: HTMLElement | null) => {
     if (loading || fetchingMore) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
+      if (entries[0] && entries[0].isIntersecting && hasMore) {
         setPage(prevPage => prevPage + 1);
       }
     });
@@ -57,58 +63,84 @@ const Feed = () => {
 
   const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/'; 
 
-  const fetchPostStats = useCallback(async (postId) => {
+  const fetchPostStats = useCallback(async (postId: string) => {
     try {
-      const likes = await getLikeCount(postId);
-      const comments = await getComments(postId);
+      const likesCount = await getLikeCount(postId);
+      const commentsList = await getComments(postId);
       setPostStats(prev => ({
         ...prev,
-        [postId]: { ...prev[postId], likes, comments: comments.length }
+        [postId]: { ...prev[postId], likes: likesCount, comments: commentsList?.length || 0 }
       }));
     } catch (err) {}
   }, []);
 
-  const fetchFeed = useCallback(async (pageNum) => {
+  const fetchFeed = useCallback(async (pageNum: number) => {
     if (pageNum > 0) setFetchingMore(true);
     else setLoading(true);
 
     try {
-      const data = await getFeed(pageNum, 10);
+      let filteredData: any[] = [];
       
-      if (!Array.isArray(data)) {
-        console.warn('Received non-array data from feed API:', data);
-        setHasMore(false);
-        return;
+      if (userId) {
+        // Fetch posts for a specific user
+        const res = await getUserPosts(userId, pageNum, 10);
+        const data = res?.content || [];
+        filteredData = data.map((post: any) => ({
+          ...post,
+          id: post.postId,
+          actorId: post.userId,
+          actorName: post.userName || 'LinkedIn User',
+          actorDesignation: post.userDesignation || 'LinkedIn Member',
+          actorAvatar: post.profileImageUrl,
+          timestamp: post.createdAt,
+          type: 'POST_CREATED',
+        }));
+        if (data.length === 0) setHasMore(false);
+      } else {
+        // Global feed
+        const res = await getFeed(pageNum, 10);
+        const data = res?.content || [];
+        if (!Array.isArray(data)) {
+          console.warn('Received non-array data from feed API:', data);
+          setHasMore(false);
+          return;
+        }
+        if (data.length === 0) {
+          setHasMore(false);
+        }
+        filteredData = data;
       }
 
-      if (data.length === 0) {
+      if (limit && pageNum === 0) {
+        const slicedData = filteredData.slice(0, limit);
+        setPosts(slicedData);
         setHasMore(false);
       } else {
-        const filteredData = data.filter(item => item.type === 'POST_CREATED');
         setPosts(prev => pageNum === 0 ? filteredData : [...prev, ...filteredData]);
-        filteredData.forEach(item => {
-          if (item.postId) {
-            setPostStats(prev => ({
-              ...prev,
-              [item.postId]: { ...prev[item.postId], liked: item.likedByCurrentUser }
-            }));
-            fetchPostStats(item.postId);
-          }
-        });
       }
+      
+      filteredData.forEach(item => {
+        if (item.postId) {
+          setPostStats(prev => ({
+            ...prev,
+            [item.postId]: { ...prev[item.postId], liked: item.likedByCurrentUser }
+          }));
+          fetchPostStats(item.postId);
+        }
+      });
     } catch (err) {
       console.error('Error fetching feed:', err);
     } finally {
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [fetchPostStats]);
+  }, [fetchPostStats, userId, user, limit]);
 
   useEffect(() => {
     fetchFeed(page);
   }, [page, fetchFeed]);
 
-  const handleLike = async (postId) => {
+  const handleLike = async (postId: string) => {
     const isLiked = postStats[postId]?.liked;
     
     // Optimistic UI update
@@ -141,43 +173,45 @@ const Feed = () => {
     }
   };
 
-  const toggleComments = async (feedItemId, postId) => {
+  const toggleComments = async (feedItemId: string, postId: string) => {
     if (activeFeedItemId === feedItemId) {
       setActiveFeedItemId(null);
     } else {
       setActiveFeedItemId(feedItemId);
       if (postId && !postComments[postId]) {
         try {
-          const comments = await getComments(postId);
-          setPostComments(prev => ({ ...prev, [postId]: comments }));
+          const res = await getComments(postId);
+          setPostComments(prev => ({ ...prev, [postId]: res || [] }));
         } catch (err) {}
       }
     }
   };
 
-  const handleInputChange = (feedItemId, value) => {
+  const handleInputChange = (feedItemId: string, value: string) => {
     setCommentInputs(prev => ({ ...prev, [feedItemId]: value }));
   };
 
-  const handleCommentSubmit = async (feedItemId, postId) => {
+  const handleCommentSubmit = async (feedItemId: string, postId: string) => {
     const text = commentInputs[feedItemId];
     if (!text || !text.trim() || !postId) return;
     
     try {
       const newComment = await commentOnPost(postId, text);
-      setPostComments(prev => ({
-        ...prev,
-        [postId]: [newComment, ...(prev[postId] || [])]
-      }));
-      setPostStats(prev => ({
-        ...prev,
-        [postId]: { ...prev[postId], comments: (prev[postId]?.comments || 0) + 1 }
-      }));
-      handleInputChange(feedItemId, '');
+      if (newComment) {
+          setPostComments(prev => ({
+            ...prev,
+            [postId]: [newComment, ...(prev[postId] || [])]
+          }));
+          setPostStats(prev => ({
+            ...prev,
+            [postId]: { ...prev[postId], comments: (prev[postId]?.comments || 0) + 1 }
+          }));
+          handleInputChange(feedItemId, '');
+      }
     } catch (err) {}
   };
 
-  const handleDeleteComment = async (postId, commentId) => {
+  const handleDeleteComment = async (postId: string, commentId: string) => {
     if (!window.confirm('Delete this comment?')) return;
     try {
       await deleteComment(commentId);
@@ -203,7 +237,7 @@ const Feed = () => {
     </div>
   );
 
-  const toggleExpand = (postId) => {
+  const toggleExpand = (postId: string) => {
     setExpandedPosts(prev => ({ ...prev, [postId]: !prev[postId] }));
   };
 
@@ -224,7 +258,15 @@ const Feed = () => {
             className="linkedin-card feed-post-card"
           >
             <div className="post-author-row">
-              <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '48px', color: '#adb3b8' }} />
+              {item.actorAvatar ? (
+                <img 
+                    src={`${IMAGE_BASE_URL}${item.actorAvatar}`} 
+                    alt={item.actorName} 
+                    style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '48px', color: '#adb3b8' }} />
+              )}
               <div className="post-author-info">
                 <Link to={`/profile/${item.actorId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <h4>{item.actorName || 'LinkedIn User'}</h4>
@@ -248,7 +290,7 @@ const Feed = () => {
               </p>
               {item.imageUrls && item.imageUrls.length > 0 ? (
                 <div className={`post-images-grid images-count-${Math.min(item.imageUrls.length, 4)}`}>
-                  {item.imageUrls.map((url, idx) => (
+                  {item.imageUrls.map((url: string, idx: number) => (
                     <div key={idx} className="post-image-item">
                       <img src={`${IMAGE_BASE_URL}${url}`} alt={`Post attachment ${idx}`} />
                     </div>
@@ -319,7 +361,7 @@ const Feed = () => {
                   </div>
                 </div>
                 <div className="comments-display-list">
-                  {(postComments[item.postId] || []).map(comment => (
+                  {(postComments[item.postId] || []).map((comment: any) => (
                     <div key={comment.id} className="comment-entry" style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'flex-start' }}>
                       <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8', marginTop: '4px' }} />
                       <div className="comment-bubble" style={{ position: 'relative' }}>

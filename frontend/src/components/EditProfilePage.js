@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProfile, updateProfile } from '../api/userApi';
+import { getMyProfile } from '../api/profileApi';
+import { updateProfileComposite } from '../api/userApi';
 import { useUser } from '../context/UserContext';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -21,6 +22,8 @@ const EditProfilePage = () => {
     designation: '',
     about: '',
   });
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -29,7 +32,8 @@ const EditProfilePage = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const profileData = await getProfile();
+        const res = await getMyProfile();
+        const profileData = res.result;
         if (profileData) {
             setProfile({
                 ...profileData,
@@ -71,6 +75,18 @@ const EditProfilePage = () => {
     }
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validateForm();
@@ -82,7 +98,7 @@ const EditProfilePage = () => {
 
     setSubmitting(true);
     try {
-      await updateProfile(profile);
+      await updateProfileComposite({ ...profile, image });
       toast.success('Profile updated successfully!');
       navigate('/profile');
     } catch (err) {
@@ -108,6 +124,8 @@ const EditProfilePage = () => {
     );
   }
 
+  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
+
   return (
     <div className="page-layout three-column-grid">
       {/* Left Column */}
@@ -115,7 +133,16 @@ const EditProfilePage = () => {
         <div className="linkedin-card profile-mini-card">
           <div className="mini-card-cover"></div>
           <div className="mini-card-content">
-            <FontAwesomeIcon icon={faUserCircle} className="mini-avatar-home" style={{ fontSize: '72px', color: '#adb3b8' }} />
+            {imagePreview || user?.profileImageUrl ? (
+                <img 
+                    src={imagePreview || `${IMAGE_BASE_URL}${user.profileImageUrl}`} 
+                    alt="Profile" 
+                    className="mini-avatar-home"
+                    style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover' }}
+                />
+            ) : (
+                <FontAwesomeIcon icon={faUserCircle} className="mini-avatar-home" style={{ fontSize: '72px', color: '#adb3b8' }} />
+            )}
             <h3>{user ? `${user.firstName} ${user.lastName}` : 'User'}</h3>
             <p>{profile.headline || 'Your headline here'}</p>
           </div>
@@ -133,6 +160,30 @@ const EditProfilePage = () => {
           </div>
 
           <form onSubmit={handleSubmit}>
+            <h4 className="form-section-title">Profile Picture</h4>
+            <div className="form-group-refined" style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '24px' }}>
+                <div className="avatar-upload-preview">
+                    {imagePreview || user?.profileImageUrl ? (
+                        <img 
+                            src={imagePreview || `${IMAGE_BASE_URL}${user.profileImageUrl}`} 
+                            alt="Preview" 
+                            style={{ width: '100px', height: '100px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0a66c2' }}
+                        />
+                    ) : (
+                        <div style={{ width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid #ccc' }}>
+                            <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '60px', color: '#adb3b8' }} />
+                        </div>
+                    )}
+                </div>
+                <div style={{ flex: 1 }}>
+                    <label className="btn-secondary-pill" style={{ cursor: 'pointer', display: 'inline-block' }}>
+                        Change Photo
+                        <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                    </label>
+                    <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>Recommended: Square image, max 2MB.</p>
+                </div>
+            </div>
+
             <h4 className="form-section-title">Professional Identity</h4>
             
             <div className="form-group-refined">

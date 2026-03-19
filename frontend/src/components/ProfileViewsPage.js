@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getProfileViews, getUserByInternalId, getProfileViewTrends } from '../api/userApi';
+import { getProfileViews, getProfileViewTrends } from '../api/profileApi';
+import { getUserById } from '../api/userApi';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChartLine, faUserCircle } from '@fortawesome/free-solid-svg-icons';
@@ -17,15 +18,18 @@ const ProfileViewsPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [viewsData, trendsData] = await Promise.all([
+      const [viewsRes, trendsRes] = await Promise.all([
         getProfileViews(),
         getProfileViewTrends()
       ]);
 
+      const viewsData = viewsRes.result || [];
+      const trendsData = trendsRes.result || [];
+
       const viewsWithUsers = await Promise.all(
         viewsData.map(async (view) => {
           try {
-            const userRes = await getUserByInternalId(view.viewerId);
+            const userRes = await getUserById(view.viewerId);
             return { ...view, viewer: userRes.result };
           } catch (err) {
             return { ...view, viewer: { firstName: 'User', lastName: view.viewerId.substring(0,8) } };

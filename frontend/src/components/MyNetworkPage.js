@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  getPendingConnections, 
   respondToConnectionRequest, 
-  getUserByInternalId, 
-  getAllUsers, 
   sendConnectionRequest,
-  getMyConnections
+  getPendingRequests,
+  getConnections
+} from '../api/profileApi';
+import { 
+  getUserById, 
+  getAllUsers
 } from '../api/userApi';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -24,31 +26,29 @@ import '../App.css';
 
 const MyNetworkPage = () => {
   const { user: currentUser } = useUser();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('invitations'); 
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [currentUser]);
-
-  const fetchInitialData = async () => {
+  const fetchInitialData = useCallback(async () => {
     if (!currentUser) return;
     setLoading(true);
     try {
-      const [pendingData, allUsersRes, connectionsRes] = await Promise.all([
-        getPendingConnections(),
-        getAllUsers(0, 50),
-        getMyConnections()
+      // API calls return data.result directly now
+      const [pendingData, allUsersRes, connectionsData] = await Promise.all([
+        getPendingRequests(),
+        getAllUsers(0, 100), 
+        getConnections()
       ]);
 
       const requestsWithUsers = await Promise.all(
-        pendingData.map(async (req) => {
+        (pendingData || []).map(async (req) => {
           try {
-            const userRes = await getUserByInternalId(req.requesterId); 
-            return { ...req, sender: userRes.result };
+            const userData = await getUserById(req.requesterId); 
+            return { ...req, sender: userData };
           } catch (err) {
             return { ...req, sender: { firstName: 'User', lastName: req.requesterId.substring(0,8) } };
           }
@@ -57,24 +57,36 @@ const MyNetworkPage = () => {
       setRequests(requestsWithUsers);
 
       const connectedUsers = await Promise.all(
-        connectionsRes.map(async (userId) => {
+        (connectionsData || []).map(async (conn) => {
+            const otherId = conn.requesterId === currentUser.id ? conn.receiverId : conn.requesterId;
             try {
-                const userRes = await getUserByInternalId(userId);
-                return userRes.result;
+                const userData = await getUserById(otherId);
+                return userData;
             } catch (err) {
-                return { id: userId, firstName: 'User', email: 'Connected' };
+                return { id: otherId, firstName: 'User', lastName: 'Connected', email: 'Connected' };
             }
         })
       );
       setConnections(connectedUsers);
 
-      const connectedIds = new Set(connectionsRes);
-      const pendingIds = new Set(pendingData.map(r => r.requesterId));
+      // --- Filtering Logic ---
+      const connectedAndPendingIds = new Set();
+      connectedAndPendingIds.add(currentUser.id); // Don't suggest self
+
+      (connectionsData || []).forEach(c => {
+          connectedAndPendingIds.add(c.requesterId);
+          connectedAndPendingIds.add(c.receiverId);
+      });
+
+      (pendingData || []).forEach(r => {
+          connectedAndPendingIds.add(r.requesterId);
+          connectedAndPendingIds.add(r.receiverId);
+      });
       
-      const filteredSuggestions = (allUsersRes.result || []).filter(u => 
-        u.id !== currentUser.id && 
-        !connectedIds.has(u.id) &&
-        !pendingIds.has(u.id)
+      const allUsers = allUsersRes?.content || allUsersRes || [];
+
+      const filteredSuggestions = allUsers.filter(u => 
+        !connectedAndPendingIds.has(u.id)
       ).slice(0, 12);
 
       setSuggestions(filteredSuggestions);
@@ -84,7 +96,11 @@ const MyNetworkPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   const handleAction = async (id, accept) => {
     try {
@@ -107,6 +123,10 @@ const MyNetworkPage = () => {
       } catch (err) {
           toast.error('Already sent or failed.');
       }
+  };
+
+  const handleMessageClick = (conn) => {
+    navigate(`/messaging?userId=${conn.id}&userName=${encodeURIComponent(conn.firstName + ' ' + conn.lastName)}`);
   };
 
   if (loading) return (
@@ -235,7 +255,13 @@ const MyNetworkPage = () => {
                                     </div>
                                 </div>
                                 <div className="request-actions">
-                                    <button className="btn-secondary-round" style={{ padding: '4px 16px', fontSize: '14px' }}>Message</button>
+                                    <button 
+                                        onClick={() => handleMessageClick(conn)} 
+                                        className="btn-secondary-round" 
+                                        style={{ padding: '4px 16px', fontSize: '14px', color: '#0a66c2', fontWeight: '600' }}
+                                    >
+                                        Message
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -249,7 +275,7 @@ const MyNetworkPage = () => {
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '400' }}>People you may know</h3>
                 <Link to="/search" style={{ fontSize: '14px', color: '#666', textDecoration: 'none', fontWeight: '600' }}>See all</Link>
             </div>
-            <div className="suggestions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', padding: '12px' }}>
+            <div className="suggestions-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', padding: '12px', display: 'grid' }}>
                 {suggestions.map(userSuggestion => (
                     <div key={userSuggestion.id} className="suggestion-card" style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '12px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
                         <FontAwesomeIcon icon={faUserCircle} size="4x" style={{ color: '#adb3b8', marginBottom: '8px' }} />

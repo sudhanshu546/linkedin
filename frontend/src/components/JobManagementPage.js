@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { getMyPostings, getJobApplicants, updateApplicationStatus, getUserByInternalId } from '../api/userApi';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getMyPostings, getJobApplicants, updateApplicationStatus, deleteJob } from '../api/jobApi';
+import { getUserById } from '../api/userApi';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUsers, faBriefcase, faCheck, faTimes, faChevronRight, faUserCircle } from '@fortawesome/free-solid-svg-icons';
+import { faUsers, faBriefcase, faCheck, faTimes, faChevronRight, faUserCircle, faTrashAlt, faEdit } from '@fortawesome/free-solid-svg-icons';
 import '../App.css';
+import { useNavigate } from 'react-router-dom';
 
 const JobManagementPage = () => {
   const [postings, setPostings] = useState([]);
@@ -11,33 +13,45 @@ const JobManagementPage = () => {
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchPostings();
-  }, []);
-
-  const fetchPostings = async () => {
+  const fetchPostings = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getMyPostings();
+      const res = await getMyPostings();
+      const data = res || [];
       setPostings(data);
-      if (data.length > 0) handleJobSelect(data[0]);
+      if (data.length > 0) {
+          if (!selectedJob) handleJobSelect(data[0]);
+          else {
+              const updated = data.find(j => j.id === selectedJob.id);
+              if (updated) setSelectedJob(updated);
+              else handleJobSelect(data[0]);
+          }
+      } else {
+          setSelectedJob(null);
+      }
     } catch (err) {
       toast.error('Failed to load your job postings.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedJob]);
+
+  useEffect(() => {
+    fetchPostings();
+  }, [fetchPostings]);
 
   const handleJobSelect = async (job) => {
     setSelectedJob(job);
     setLoadingApplicants(true);
     try {
-      const apps = await getJobApplicants(job.id);
+      const res = await getJobApplicants(job.id);
+      const apps = res?.content || res || [];
       const appsWithUsers = await Promise.all(apps.map(async (app) => {
           try {
-              const userRes = await getUserByInternalId(app.applicantId);
-              return { ...app, applicant: userRes.result };
+              const userData = await getUserById(app.applicantId);
+              return { ...app, applicant: userData };
           } catch (e) {
               return { ...app, applicant: { firstName: 'Applicant', lastName: app.applicantId.substring(0,8) } };
           }
@@ -50,16 +64,29 @@ const JobManagementPage = () => {
     }
   };
 
-  const handleStatusUpdate = async (applicationId, newStatus) => {
+  const handleStatusUpdate = async (app, newStatus) => {
     try {
-      await updateApplicationStatus(applicationId, newStatus);
-      setApplicants(applicants.map(app => 
-        app.id === applicationId ? { ...app, status: newStatus } : app
+      await updateApplicationStatus(selectedJob.id, app.applicantId, newStatus);
+      setApplicants(applicants.map(a => 
+        a.id === app.id ? { ...a, status: newStatus } : a
       ));
       toast.success(`Application marked as ${newStatus.toLowerCase()}`);
     } catch (err) {
       toast.error('Failed to update status.');
     }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+      if (!window.confirm('Are you sure you want to delete this job posting? This action cannot be undone.')) return;
+      
+      try {
+          await deleteJob(jobId);
+          toast.success('Job posting deleted successfully.');
+          setSelectedJob(null);
+          fetchPostings();
+      } catch (err) {
+          toast.error('Failed to delete job posting.');
+      }
   };
 
   if (loading) return <div className="loading-container"><div className="spinner"></div></div>;
@@ -68,7 +95,7 @@ const JobManagementPage = () => {
     <div className="page-layout management-grid">
       <aside className="management-sidebar">
         <div className="linkedin-card">
-          <div className="card-header">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3>My Job Postings</h3>
           </div>
           <div className="posting-list-mini">
@@ -94,11 +121,35 @@ const JobManagementPage = () => {
       <main className="management-main">
         {selectedJob ? (
           <div className="linkedin-card">
-            <div className="card-header applicants-header">
+            <div className="card-header applicants-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h3>Applicants for {selectedJob.title}</h3>
-                <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0' }}>{applicants.length} total candidates</p>
+                <h3 style={{ fontSize: '20px' }}>{selectedJob.title}</h3>
+                <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0' }}>{selectedJob.company} • {selectedJob.location}</p>
+                <p style={{ fontSize: '14px', color: '#0a66c2', fontWeight: 600, margin: '8px 0 0' }}>{applicants.length} total candidates</p>
               </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                  <button 
+                    onClick={() => navigate('/jobs/post', { state: { editJob: selectedJob } })}
+                    className="btn-edit-job"
+                    style={{ background: 'none', border: 'none', color: 'var(--linkedin-blue)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 600 }}
+                  >
+                      <FontAwesomeIcon icon={faEdit} />
+                      Edit Job
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteJob(selectedJob.id)}
+                    className="btn-delete-job"
+                    style={{ background: 'none', border: 'none', color: '#d11124', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 600 }}
+                  >
+                      <FontAwesomeIcon icon={faTrashAlt} />
+                      Delete Job
+                  </button>
+              </div>
+            </div>
+            
+            <div className="job-meta-details" style={{ padding: '0 16px 16px', borderBottom: '1px solid #eee' }}>
+                <span className="meta-tag">{selectedJob.jobType?.replace('_', ' ')}</span>
+                <span className="meta-tag">{selectedJob.experienceLevel?.replace('_', ' ')}</span>
             </div>
             
             {loadingApplicants ? (
@@ -126,13 +177,13 @@ const JobManagementPage = () => {
                                 {app.status === 'PENDING' && (
                                     <>
                                         <button 
-                                            onClick={() => handleStatusUpdate(app.id, 'REJECTED')}
+                                            onClick={() => handleStatusUpdate(app, 'REJECTED')}
                                             className="btn-reject" title="Reject"
                                         >
                                             <FontAwesomeIcon icon={faTimes} />
                                         </button>
                                         <button 
-                                            onClick={() => handleStatusUpdate(app.id, 'REVIEWED')}
+                                            onClick={() => handleStatusUpdate(app, 'REVIEWED')}
                                             className="btn-approve" title="Mark as Reviewed"
                                         >
                                             <FontAwesomeIcon icon={faCheck} />
@@ -141,7 +192,7 @@ const JobManagementPage = () => {
                                 )}
                                 {app.status === 'REVIEWED' && (
                                      <button 
-                                        onClick={() => handleStatusUpdate(app.id, 'HIRED')}
+                                        onClick={() => handleStatusUpdate(app, 'HIRED')}
                                         className="btn-hired"
                                     >
                                         Hire Candidate

@@ -1,7 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useUser } from '../../context/UserContext';
-import { getAccessToken } from '../../utils/storageUtils';
 
 interface AuthWrapperProps {
   children: ReactNode;

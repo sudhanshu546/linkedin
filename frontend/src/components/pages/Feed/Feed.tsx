@@ -134,7 +134,7 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [fetchPostStats, userId, user, limit]);
+  }, [fetchPostStats, userId, limit]);
 
   useEffect(() => {
     fetchFeed(page);

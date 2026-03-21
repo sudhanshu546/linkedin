@@ -5,7 +5,7 @@ import { useUser } from '../../../context/UserContext';
 import { getChatMessages } from '../../../api/chatApi';
 import { getMyConnections } from '../../../api/profileApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faSearch, faPaperPlane, faUserCircle, faEllipsisH, faCircle } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faSearch, faUserCircle, faEllipsisH, faCircle } from '@fortawesome/free-solid-svg-icons';
 
 const MessagingPage: React.FC = () => {
   const { user } = useUser();

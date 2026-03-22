@@ -55,9 +55,9 @@ api.interceptors.response.use(
           );
 
           if (response.data?.result) {
-            const { accessToken, refreshToken } = response.data.result;
-            setTokens({ access_token: accessToken, refresh_token: refreshToken });
-            
+            const { access_token, refresh_token } = response.data.result;
+            setTokens({ access_token, refresh_token });
+
             // Update the header for the original request and retry
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return api(originalRequest);
@@ -80,10 +80,10 @@ api.interceptors.response.use(
 
     // Global error feedback for non-401 errors or failed retries
     if (error.response && error.response.status !== 401) {
-        const message = (error.response.data as any)?.message || 'An error occurred';
-        toast.error(message);
+      const message = (error.response.data as any)?.message || 'An error occurred';
+      toast.error(message);
     } else if (!error.response) {
-        toast.error('Network error. Please check your connection.');
+      toast.error('Network error. Please check your connection.');
     }
 
     return Promise.reject(error);

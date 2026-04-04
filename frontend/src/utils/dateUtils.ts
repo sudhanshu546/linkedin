@@ -2,8 +2,8 @@
  * Date Utility Functions
  */
 
-export const formatDate = (dateString: string | Date): string => {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+export const formatDate = (dateString: string | Date | number): string => {
+  const date = typeof dateString === 'object' ? dateString : new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -23,8 +23,8 @@ export const formatDate = (dateString: string | Date): string => {
   }
 };
 
-export const formatDateFull = (dateString: string | Date): string => {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+export const formatDateFull = (dateString: string | Date | number): string => {
+  const date = typeof dateString === 'object' ? dateString : new Date(dateString);
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -32,8 +32,8 @@ export const formatDateFull = (dateString: string | Date): string => {
   });
 };
 
-export const formatDateLong = (dateString: string | Date): string => {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+export const formatDateLong = (dateString: string | Date | number): string => {
+  const date = typeof dateString === 'object' ? dateString : new Date(dateString);
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -43,16 +43,16 @@ export const formatDateLong = (dateString: string | Date): string => {
   });
 };
 
-export const formatMonthYear = (dateString: string | Date): string => {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+export const formatMonthYear = (dateString: string | Date | number): string => {
+  const date = typeof dateString === 'object' ? dateString : new Date(dateString);
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
   });
 };
 
-export const isExpired = (endDate: string | Date | null | undefined): boolean => {
+export const isExpired = (endDate: string | Date | number | null | undefined): boolean => {
   if (!endDate) return false;
-  const date = typeof endDate === 'string' ? new Date(endDate) : endDate;
+  const date = typeof endDate === 'object' ? endDate : new Date(endDate);
   return date < new Date();
 };

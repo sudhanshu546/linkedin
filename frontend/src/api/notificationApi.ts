@@ -17,7 +17,7 @@ export const getAllNotifications = async (
     API_ENDPOINTS.NOTIFICATIONS.GET_ALL,
     { params: { page, size } }
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -27,7 +27,7 @@ export const getUnreadNotifications = async (): Promise<Notification[]> => {
   const response = await api.get<ApiResponse<Notification[]>>(
     API_ENDPOINTS.NOTIFICATIONS.GET_UNREAD
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -39,7 +39,7 @@ export const markNotificationAsRead = async (
   const response = await api.put<ApiResponse<any>>(
     API_ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId)
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -51,7 +51,7 @@ export const deleteNotification = async (
   const response = await api.delete<ApiResponse<any>>(
     API_ENDPOINTS.NOTIFICATIONS.DELETE(notificationId)
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -61,5 +61,5 @@ export const markAllAsRead = async (): Promise<any> => {
   const response = await api.patch<ApiResponse<any>>(
     `${API_ENDPOINTS.NOTIFICATIONS.GET_ALL}/read-all`
   );
-  return response.data.result;
+  return response.data.data;
 };

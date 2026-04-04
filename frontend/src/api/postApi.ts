@@ -23,7 +23,7 @@ export const getFeed = async (
     API_ENDPOINTS.FEED.GET,
     { params: { page, size } }
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -48,27 +48,36 @@ export const createPost = async (data: PostCreateRequest): Promise<Post> => {
       },
     }
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
- * Like a post
+ * React to a post
  */
-export const likePost = async (postId: string): Promise<any> => {
-  const response = await api.post<ApiResponse<any>>(
-    API_ENDPOINTS.FEED.LIKE_POST(postId)
+export const reactToPost = async (postId: string, type: string): Promise<void> => {
+  await api.post(
+    `${API_ENDPOINTS.FEED.REACT_POST(postId)}?type=${type}`
   );
-  return response.data.result;
 };
 
 /**
- * Unlike a post
+ * Get user reaction for a post
  */
-export const unlikePost = async (postId: string): Promise<any> => {
-  const response = await api.delete<ApiResponse<any>>(
-    API_ENDPOINTS.FEED.UNLIKE_POST(postId)
+export const getUserReaction = async (postId: string): Promise<string | null> => {
+  const response = await api.get<ApiResponse<string>>(
+    API_ENDPOINTS.FEED.GET_REACTION(postId)
   );
-  return response.data.result;
+  return response.data.data;
+};
+
+/**
+ * Get reaction count for a post
+ */
+export const getReactionCount = async (postId: string): Promise<number> => {
+  const response = await api.get<ApiResponse<number>>(
+    API_ENDPOINTS.FEED.GET_REACTION_COUNT(postId)
+  );
+  return response.data.data;
 };
 
 /**
@@ -76,10 +85,15 @@ export const unlikePost = async (postId: string): Promise<any> => {
  */
 export const commentOnPost = async (
   postId: string,
-  content: string
+  content: string,
+  parentId?: string
 ): Promise<Comment> => {
+  const url = parentId 
+    ? `${API_ENDPOINTS.FEED.COMMENT(postId)}?parentId=${parentId}`
+    : API_ENDPOINTS.FEED.COMMENT(postId);
+    
   const response = await api.post<ApiResponse<Comment>>(
-    API_ENDPOINTS.FEED.COMMENT(postId),
+    url,
     content,
     {
       headers: {
@@ -87,7 +101,7 @@ export const commentOnPost = async (
       },
     }
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -97,17 +111,22 @@ export const getComments = async (postId: string): Promise<Comment[]> => {
   const response = await api.get<ApiResponse<Comment[]>>(
     API_ENDPOINTS.FEED.GET_COMMENTS(postId)
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
- * Get like count for a post
+ * Get posts for a specific user
  */
-export const getLikeCount = async (postId: string): Promise<number> => {
-  const response = await api.get<ApiResponse<number>>(
-    API_ENDPOINTS.FEED.GET_LIKE_COUNT(postId)
+export const getUserPosts = async (
+  userId: string,
+  page = PAGINATION.DEFAULT_PAGE,
+  size = PAGINATION.FEED_SIZE
+): Promise<Post[]> => {
+  const response = await api.get<ApiResponse<Post[]>>(
+    `${API_ENDPOINTS.FEED.CREATE_POST}/user/${userId}`,
+    { params: { page, size } }
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -117,7 +136,7 @@ export const deleteComment = async (commentId: string): Promise<any> => {
   const response = await api.delete<ApiResponse<any>>(
     API_ENDPOINTS.FEED.DELETE_COMMENT(commentId)
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -127,7 +146,7 @@ export const deletePost = async (postId: string): Promise<any> => {
   const response = await api.delete<ApiResponse<any>>(
     `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}`
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -141,5 +160,37 @@ export const editPost = async (
     `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}`,
     { content }
   );
-  return response.data.result;
+  return response.data.data;
+};
+
+/**
+ * Create a new poll
+ */
+export const createPoll = async (data: {
+  question: string;
+  options: { text: string }[];
+  expiryDate: string;
+}): Promise<Post> => {
+  const response = await api.post<ApiResponse<Post>>(
+    API_ENDPOINTS.FEED.CREATE_POLL,
+    data
+  );
+  return response.data.data;
+};
+
+/**
+ * Vote in a poll
+ */
+export const voteInPoll = async (postId: string, optionId: string): Promise<void> => {
+  await api.post(API_ENDPOINTS.FEED.VOTE_POLL(postId, optionId));
+};
+
+/**
+ * Get poll details
+ */
+export const getPollDetails = async (postId: string): Promise<any> => {
+  const response = await api.get<ApiResponse<any>>(
+    API_ENDPOINTS.FEED.GET_POLL(postId)
+  );
+  return response.data.data;
 };

@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { getMyPostings, getJobApplicants, updateApplicationStatus, deleteJob } from '../api/jobApi';
-import { getUserById } from '../api/userApi';
+import { getMyPostings, getJobApplicants, updateApplicationStatus, deleteJob } from '../../../api/jobApi';
+import { getUserById } from '../../../api/userApi';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUsers, faBriefcase, faCheck, faTimes, faChevronRight, faUserCircle, faTrashAlt, faEdit } from '@fortawesome/free-solid-svg-icons';
-import '../App.css';
+import '../../../App.css';
 import { useNavigate } from 'react-router-dom';
+import { Job, JobApplication, User } from '../../../types';
 
-const JobManagementPage = () => {
-  const [postings, setPostings] = useState([]);
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [applicants, setApplicants] = useState([]);
+const JobManagementPage: React.FC = () => {
+  const [postings, setPostings] = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [applicants, setApplicants] = useState<(JobApplication & { applicant?: User })[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const navigate = useNavigate();
@@ -22,12 +23,18 @@ const JobManagementPage = () => {
       const data = res || [];
       setPostings(data);
       if (data.length > 0) {
-          if (!selectedJob) handleJobSelect(data[0]);
-          else {
-              const updated = data.find(j => j.id === selectedJob.id);
-              if (updated) setSelectedJob(updated);
-              else handleJobSelect(data[0]);
-          }
+          // Use the latest selectedJob value from state if needed, 
+          // but for initial load we just select the first one if none selected
+          setSelectedJob(prev => {
+              if (!prev) {
+                  handleJobSelect(data[0]);
+                  return data[0];
+              }
+              const updated = data.find(j => j.id === prev.id);
+              if (updated) return updated;
+              handleJobSelect(data[0]);
+              return data[0];
+          });
       } else {
           setSelectedJob(null);
       }
@@ -36,24 +43,25 @@ const JobManagementPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedJob]);
+  }, []);
 
   useEffect(() => {
     fetchPostings();
   }, [fetchPostings]);
 
-  const handleJobSelect = async (job) => {
+  const handleJobSelect = async (job: Job) => {
     setSelectedJob(job);
     setLoadingApplicants(true);
     try {
       const res = await getJobApplicants(job.id);
       const apps = res?.content || res || [];
-      const appsWithUsers = await Promise.all(apps.map(async (app) => {
+      const appsWithUsers = await Promise.all((apps as JobApplication[]).map(async (app) => {
           try {
-              const userData = await getUserById(app.applicantId);
-              return { ...app, applicant: userData };
+              const userRes = await getUserById(app.applicantId || app.userId);
+              return { ...app, applicant: userRes };
           } catch (e) {
-              return { ...app, applicant: { firstName: 'Applicant', lastName: app.applicantId.substring(0,8) } };
+              const id = app.applicantId || app.userId;
+              return { ...app, applicant: { firstName: 'Applicant', lastName: id.substring(0,8) } as User };
           }
       }));
       setApplicants(appsWithUsers);
@@ -64,11 +72,12 @@ const JobManagementPage = () => {
     }
   };
 
-  const handleStatusUpdate = async (app, newStatus) => {
+  const handleStatusUpdate = async (app: JobApplication, newStatus: string) => {
+    if (!selectedJob) return;
     try {
-      await updateApplicationStatus(selectedJob.id, app.applicantId, newStatus);
+      await updateApplicationStatus(selectedJob.id, app.applicantId || app.userId, newStatus);
       setApplicants(applicants.map(a => 
-        a.id === app.id ? { ...a, status: newStatus } : a
+        a.id === app.id ? { ...a, status: newStatus as any } : a
       ));
       toast.success(`Application marked as ${newStatus.toLowerCase()}`);
     } catch (err) {
@@ -76,7 +85,7 @@ const JobManagementPage = () => {
     }
   };
 
-  const handleDeleteJob = async (jobId) => {
+  const handleDeleteJob = async (jobId: string) => {
       if (!window.confirm('Are you sure you want to delete this job posting? This action cannot be undone.')) return;
       
       try {
@@ -96,7 +105,7 @@ const JobManagementPage = () => {
       <aside className="management-sidebar">
         <div className="linkedin-card">
           <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3>My Job Postings</h3>
+            <h3 style={{ margin: 0, fontSize: '16px' }}>My Job Postings</h3>
           </div>
           <div className="posting-list-mini">
             {postings.length === 0 ? (
@@ -149,7 +158,6 @@ const JobManagementPage = () => {
             
             <div className="job-meta-details" style={{ padding: '0 16px 16px', borderBottom: '1px solid #eee' }}>
                 <span className="meta-tag">{selectedJob.jobType?.replace('_', ' ')}</span>
-                <span className="meta-tag">{selectedJob.experienceLevel?.replace('_', ' ')}</span>
             </div>
             
             {loadingApplicants ? (
@@ -174,7 +182,7 @@ const JobManagementPage = () => {
                                 </div>
                             </div>
                             <div className="applicant-actions">
-                                {app.status === 'PENDING' && (
+                                {app.status === 'APPLIED' && (
                                     <>
                                         <button 
                                             onClick={() => handleStatusUpdate(app, 'REJECTED')}
@@ -183,16 +191,16 @@ const JobManagementPage = () => {
                                             <FontAwesomeIcon icon={faTimes} />
                                         </button>
                                         <button 
-                                            onClick={() => handleStatusUpdate(app, 'REVIEWED')}
-                                            className="btn-approve" title="Mark as Reviewed"
+                                            onClick={() => handleStatusUpdate(app, 'REVIEWING')}
+                                            className="btn-approve" title="Mark as Reviewing"
                                         >
                                             <FontAwesomeIcon icon={faCheck} />
                                         </button>
                                     </>
                                 )}
-                                {app.status === 'REVIEWED' && (
+                                {app.status === 'REVIEWING' && (
                                      <button 
-                                        onClick={() => handleStatusUpdate(app, 'HIRED')}
+                                        onClick={() => handleStatusUpdate(app, 'ACCEPTED')}
                                         className="btn-hired"
                                     >
                                         Hire Candidate

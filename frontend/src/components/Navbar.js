@@ -10,19 +10,29 @@ import {
   faUser,
   faSearch,
   faCaretDown,
-  faUserCircle
+  faUserCircle,
+  faSun,
+  faMoon
 } from '@fortawesome/free-solid-svg-icons';
 import { useUser } from '../context/UserContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 import '../App.css';
 
 const Navbar = ({ onLogout }) => {
   const [query, setQuery] = useState('');
   const { user } = useUser();
   const { unreadCount } = useNotifications();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
+
+  const getImageUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${IMAGE_BASE_URL}${url}`;
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -90,11 +100,16 @@ const Navbar = ({ onLogout }) => {
             </div>
             <span>Notifications</span>
           </Link>
+
+          <div className="navbar-item theme-toggle" onClick={toggleTheme}>
+            <FontAwesomeIcon icon={theme === 'light' ? faMoon : faSun} size="lg" />
+            <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
+          </div>
           
           <div className="navbar-item profile-dropdown-container">
             <div className="dropdown-trigger">
                 {user?.profileImageUrl ? (
-                    <img src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} alt="Me" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                    <img src={getImageUrl(user.profileImageUrl)} alt="Me" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                     <FontAwesomeIcon icon={faUser} size="lg" />
                 )}
@@ -108,7 +123,7 @@ const Navbar = ({ onLogout }) => {
               <div className="me-dropdown-header">
                 <div className="notif-avatar-dropdown">
                     {user?.profileImageUrl ? (
-                        <img src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} alt="Me" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
+                        <img src={getImageUrl(user.profileImageUrl)} alt="Me" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
                     ) : (
                         <FontAwesomeIcon icon={faUserCircle} size="3x" />
                     )}

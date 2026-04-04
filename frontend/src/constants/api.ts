@@ -3,6 +3,9 @@
  */
 
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9191';
+export const IMAGE_BASE_URL = `${API_BASE_URL}/us/uploads/`;
+export const WS_BASE_URL = process.env.REACT_APP_WS_URL || 'http://localhost:9191/ws';
+export const CHAT_WS_URL = process.env.REACT_APP_CHAT_WS_URL || 'http://localhost:9191/ws-chat';
 
 /**
  * API Endpoints organized by service
@@ -17,13 +20,18 @@ export const API_ENDPOINTS = {
     GET_BY_ID: (userId: string) => `/us/user/user/${userId}`,
     GET_BY_INTERNAL_ID: (userId: string) => `/us/user/${userId}`,
     SEARCH: '/us/user/search',
+    ADVANCED_SEARCH: '/us/user/advanced-search',
     REFRESH_TOKEN: '/us/login/user/refresh-token',
+    PRIVACY: '/us/user/privacy',
+    BLOCK: (userId: string) => `/us/user/block/${userId}`,
+    UNBLOCK: (userId: string) => `/us/user/unblock/${userId}`,
   },
 
   // Profile Service (ps/*)
   PROFILE: {
     GET_ME: '/ps/profiles/me',
     SEARCH: '/ps/profiles/search',
+    ADVANCED_SEARCH: '/ps/profiles/advanced-search',
     UPDATE: '/ps/profiles',
     GET_BY_ID: (userId: string) => `/ps/profiles/${userId}`,
   },
@@ -32,12 +40,15 @@ export const API_ENDPOINTS = {
   FEED: {
     GET: '/ps/feed',
     CREATE_POST: '/us/posts',
-    LIKE_POST: (postId: string) => `/us/posts/${postId}/like`,
-    UNLIKE_POST: (postId: string) => `/us/posts/${postId}/unlike`,
+    REACT_POST: (postId: string) => `/us/posts/${postId}/react`,
+    GET_REACTION: (postId: string) => `/us/posts/${postId}/reaction`,
+    GET_REACTION_COUNT: (postId: string) => `/us/posts/${postId}/reactions/count`,
     COMMENT: (postId: string) => `/us/posts/${postId}/comments`,
     DELETE_COMMENT: (commentId: string) => `/us/posts/comments/${commentId}`,
     GET_COMMENTS: (postId: string) => `/us/posts/${postId}/comments`,
-    GET_LIKE_COUNT: (postId: string) => `/us/posts/${postId}/likes/count`,
+    CREATE_POLL: '/us/posts/polls',
+    VOTE_POLL: (postId: string, optionId: string) => `/us/posts/${postId}/polls/vote/${optionId}`,
+    GET_POLL: (postId: string) => `/us/posts/${postId}/polls`,
   },
 
   // Job Service (js/*)
@@ -50,6 +61,7 @@ export const API_ENDPOINTS = {
     APPLY: (jobId: string) => `/js/jobs/${jobId}/apply`,
     GET_APPLICANTS: (jobId: string) => `/js/jobs/${jobId}/applicants`,
     SEARCH: '/js/jobs/search',
+    ADVANCED_SEARCH: '/js/jobs/advanced-search',
   },
 
   // Notification Service (ns/*)
@@ -74,12 +86,20 @@ export const API_ENDPOINTS = {
     GET_VIEWS: '/ps/profiles/me/views',
     GET_COUNT: '/ps/profiles/me/views/count',
     GET_TRENDS: '/ps/profiles/me/views/trends',
+    GET_DEMOGRAPHICS: '/ps/profiles/me/views/demographics',
   },
 
   // Chat/Messaging Service (cs/*)
   CHAT: {
     GET_MESSAGES: (recipientId: string) => `/cs/messages/${recipientId}`,
     MARK_READ: (senderId: string) => `/cs/messages/read/${senderId}`,
+  },
+
+  // Search Service (ss/*)
+  SEARCH: {
+    USERS: '/ss/api/search/users',
+    JOBS: '/ss/api/search/jobs',
+    TRENDING_HASHTAGS: '/ss/api/search/trending-hashtags',
   },
 };
 

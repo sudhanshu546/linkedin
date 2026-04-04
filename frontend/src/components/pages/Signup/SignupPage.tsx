@@ -35,8 +35,8 @@ const SignupPage: React.FC = () => {
         password 
       });
 
-      if (loginRes && loginRes.result) {
-        setTokens(loginRes.result);
+      if (loginRes && loginRes.data) {
+        setTokens(loginRes.data);
         navigate('/home');
       } else {
         navigate('/login');
@@ -52,18 +52,20 @@ const SignupPage: React.FC = () => {
   };
 
   return (
-    <div className="auth-page-container" style={{ backgroundColor: '#f3f2ef' }}>
-      <header className="auth-nav-bar" style={{ justifyContent: 'center', padding: '32px 0' }}>
-        <Link to="/" className="linkedin-auth-logo" style={{ fontSize: '32px' }}>
+    <div className="auth-page-container">
+      <header className="auth-nav-bar">
+        <Link to="/" className="linkedin-auth-logo">
           Linked<span>in</span>
         </Link>
       </header>
 
-      <main style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <h1 className="auth-hero-headline">Make the most of your professional life</h1>
-
+      <main className="auth-main-content">
         <div className="auth-card-box">
-          {error && <p style={{ color: '#d11124', fontSize: '14px' }}>{error}</p>}
+          <h1>Join LinkedIn</h1>
+          <p>Make the most of your professional life</p>
+
+          {error && <div style={{ color: '#d11124', fontSize: '14px', marginBottom: '16px' }}>{error}</div>}
+          
           <form onSubmit={handleSignup}>
             <div className="auth-input-item">
               <label>First name</label>

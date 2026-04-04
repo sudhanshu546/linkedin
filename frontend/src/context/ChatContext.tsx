@@ -9,6 +9,10 @@ interface ChatContextType {
   messages: Record<string, ChatMessage[]>;
   sendMessage: (recipientId: string, content: string) => void;
   markAsRead: (senderId: string) => Promise<void>;
+  sendTyping: (recipientId: string, typing: boolean) => void;
+  sendReadReceipt: (senderId: string, messageId?: string) => void;
+  onlineUsers: Set<string>;
+  typingStatus: Record<string, boolean>;
   connected: boolean;
   setChatHistory: (recipientId: string, history: ChatMessage[]) => void;
 }
@@ -20,6 +24,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [stompClient, setStompClient] = useState<Client | null>(null);
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({}); 
   const [connected, setConnected] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [typingStatus, setTypingStatus] = useState<Record<string, boolean>>({});
 
   const connect = useCallback(() => {
     if (!user || !user.id) return;
@@ -49,6 +55,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('Connected to Chat WS');
       setConnected(true);
       
+      // Subscribe to messages
       client.subscribe(`/user/${user.id}/queue/messages`, (message) => {
         const receivedMsg: ChatMessage = JSON.parse(message.body);
         console.log('Received message:', receivedMsg);
@@ -61,6 +68,36 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             [otherId]: [...currentChat, receivedMsg]
           };
         });
+      });
+
+      // Subscribe to events (typing, read receipts)
+      client.subscribe(`/user/${user.id}/queue/events`, (message) => {
+          const event = JSON.parse(message.body);
+          if (event.type === 'TYPING') {
+              setTypingStatus(prev => ({ ...prev, [event.senderId]: event.typing }));
+          } else if (event.type === 'READ_RECEIPT') {
+              setMessages(prev => {
+                  const otherId = event.recipientId; // recipient of the receipt is the sender of messages
+                  const currentChat = prev[otherId] || [];
+                  return {
+                      ...prev,
+                      [otherId]: currentChat.map(m => ({ ...m, isRead: true }))
+                  };
+              });
+          }
+      });
+
+      // Subscribe to global presence
+      client.subscribe('/topic/presence', (message) => {
+          const event = JSON.parse(message.body);
+          if (event.type === 'PRESENCE') {
+              setOnlineUsers(prev => {
+                  const next = new Set(prev);
+                  if (event.online) next.add(event.senderId);
+                  else next.delete(event.senderId);
+                  return next;
+              });
+          }
       });
     };
 
@@ -151,8 +188,48 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }));
   };
 
+  const sendTyping = (recipientId: string, typing: boolean) => {
+      if (stompClient && connected && user) {
+          stompClient.publish({
+              destination: '/app/typing',
+              body: JSON.stringify({
+                  type: 'TYPING',
+                  senderId: user.id,
+                  recipientId,
+                  typing,
+                  timestamp: Date.now()
+              })
+          });
+      }
+  };
+
+  const sendReadReceipt = (senderId: string, messageId?: string) => {
+      if (stompClient && connected && user) {
+          stompClient.publish({
+              destination: '/app/read-receipt',
+              body: JSON.stringify({
+                  type: 'READ_RECEIPT',
+                  senderId: user.id, // I am the one who read it
+                  recipientId: senderId, // person who sent the message
+                  messageId,
+                  timestamp: Date.now()
+              })
+          });
+      }
+  };
+
   return (
-    <ChatContext.Provider value={{ messages, sendMessage, markAsRead, connected, setChatHistory }}>
+    <ChatContext.Provider value={{ 
+        messages, 
+        sendMessage, 
+        markAsRead, 
+        sendTyping, 
+        sendReadReceipt,
+        onlineUsers, 
+        typingStatus,
+        connected, 
+        setChatHistory 
+    }}>
       {children}
     </ChatContext.Provider>
   );

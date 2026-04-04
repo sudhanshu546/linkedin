@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getFeed, likePost, unlikePost, commentOnPost, deleteComment, getComments, getLikeCount } from '../../../api/postApi';
-import { getUserPosts } from '../../../api/profileApi'; // Moved to profileApi.ts
+import DOMPurify from 'dompurify';
+import { getFeed, reactToPost, getUserReaction, commentOnPost, deleteComment, getComments, getReactionCount, getUserPosts } from '../../../api/postApi';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useUser } from '../../../context/UserContext';
@@ -10,13 +10,26 @@ import {
   faCommentDots as farCommentDots, 
   faShareSquare as farShareSquare,
   faPaperPlane,
+  faHeart,
+  faLightbulb,
+  faSmile
 } from '@fortawesome/free-regular-svg-icons';
-import { faThumbsUp as fasThumbsUp, faEllipsisH, faUserCircle, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faThumbsUp as fasThumbsUp, faEllipsisH, faUserCircle, faTrash, faHandsClapping, faHandHoldingHeart } from '@fortawesome/free-solid-svg-icons';
 import '../../../App.css'; 
+import { IMAGE_BASE_URL } from '../../../constants/api'; 
 
+const REACTION_TYPES = [
+  { type: 'LIKE', label: 'Like', icon: fasThumbsUp, color: '#0a66c2' },
+  { type: 'CELEBRATE', label: 'Celebrate', icon: faHandsClapping, color: '#057642' },
+  { type: 'SUPPORT', label: 'Support', icon: faHandHoldingHeart, color: '#0a66c2' },
+  { type: 'LOVE', label: 'Love', icon: faHeart, color: '#d11124' },
+  { type: 'INSIGHTFUL', label: 'Insightful', icon: faLightbulb, color: '#f59e0b' },
+  { type: 'FUNNY', label: 'Funny', icon: faSmile, color: '#70b5f9' },
+];
 interface FeedProps {
   userId?: string | null;
   limit?: number | null;
+  onPostsLoaded?: (posts: any[]) => void;
 }
 
 const SkeletonPost: React.FC = () => (
@@ -35,19 +48,23 @@ const SkeletonPost: React.FC = () => (
   </div>
 );
 
-const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
+const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded }) => {
   const { user } = useUser();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [fetchingMore, setFetchingMore] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   const [activeFeedItemId, setActiveFeedItemId] = useState<string | null>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({}); 
   const [postComments, setPostComments] = useState<Record<string, any[]>>({}); 
   const [postStats, setPostStats] = useState<Record<string, any>>({}); 
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
+  const [showReactionSelector, setShowReactionSelector] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<Record<string, { commentId: string, userName: string } | null>>({});
+  const [pollDetails, setPollDetails] = useState<Record<string, any>>({});
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useCallback((node: HTMLElement | null) => {
@@ -61,15 +78,23 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
     if (node) observer.current.observe(node);
   }, [loading, fetchingMore, hasMore]);
 
-  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/'; 
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${IMAGE_BASE_URL}${url}`;
+  };
 
   const fetchPostStats = useCallback(async (postId: string) => {
+    if (!postId) return;
     try {
-      const likesCount = await getLikeCount(postId);
-      const commentsList = await getComments(postId);
+      const [reactionsCount, commentsList, userReaction] = await Promise.all([
+          getReactionCount(postId),
+          getComments(postId),
+          getUserReaction(postId)
+      ]);
       setPostStats(prev => ({
         ...prev,
-        [postId]: { ...prev[postId], likes: likesCount, comments: commentsList?.length || 0 }
+        [postId]: { ...prev[postId], reactions: reactionsCount || 0, comments: commentsList?.length || 0, userReaction }
       }));
     } catch (err) {}
   }, []);
@@ -82,26 +107,24 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
       let filteredData: any[] = [];
       
       if (userId) {
-        // Fetch posts for a specific user
         const res = await getUserPosts(userId, pageNum, 10);
-        const data = res?.content || [];
+        const data = Array.isArray(res) ? res : (res as any)?.data || [];
         filteredData = data.map((post: any) => ({
           ...post,
-          id: post.postId,
+          id: post.id || post.postId,
+          postId: post.id || post.postId,
           actorId: post.userId,
           actorName: post.userName || 'LinkedIn User',
           actorDesignation: post.userDesignation || 'LinkedIn Member',
           actorAvatar: post.profileImageUrl,
-          timestamp: post.createdAt,
+          timestamp: post.createdDate,
           type: 'POST_CREATED',
         }));
         if (data.length === 0) setHasMore(false);
       } else {
-        // Global feed
         const res = await getFeed(pageNum, 10);
-        const data = res?.content || [];
+        const data = res?.data || [];
         if (!Array.isArray(data)) {
-          console.warn('Received non-array data from feed API:', data);
           setHasMore(false);
           return;
         }
@@ -115,17 +138,19 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
         const slicedData = filteredData.slice(0, limit);
         setPosts(slicedData);
         setHasMore(false);
+        if (onPostsLoaded) onPostsLoaded(slicedData);
       } else {
         setPosts(prev => pageNum === 0 ? filteredData : [...prev, ...filteredData]);
+        if (onPostsLoaded) {
+            const currentPosts = pageNum === 0 ? filteredData : [...posts, ...filteredData];
+            onPostsLoaded(currentPosts);
+        }
       }
       
       filteredData.forEach(item => {
-        if (item.postId) {
-          setPostStats(prev => ({
-            ...prev,
-            [item.postId]: { ...prev[item.postId], liked: item.likedByCurrentUser }
-          }));
-          fetchPostStats(item.postId);
+        const postId = item.postId || item.id;
+        if (postId) {
+          fetchPostStats(postId);
         }
       });
     } catch (err) {
@@ -133,43 +158,33 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
     } finally {
       setLoading(false);
       setFetchingMore(false);
+      setIsInitialLoad(false);
     }
-  }, [fetchPostStats, userId, limit]);
+  }, [userId, limit, onPostsLoaded, fetchPostStats]); // Removed 'posts' to prevent infinite loop
 
   useEffect(() => {
     fetchFeed(page);
   }, [page, fetchFeed]);
 
-  const handleLike = async (postId: string) => {
-    const isLiked = postStats[postId]?.liked;
+  const handleReaction = async (postId: string, type: string) => {
+    if (!postId) return;
+    const currentUserReaction = postStats[postId]?.userReaction;
     
-    // Optimistic UI update
     setPostStats(prev => ({
         ...prev,
         [postId]: { 
             ...prev[postId], 
-            likes: (prev[postId]?.likes || 0) + (isLiked ? -1 : 1), 
-            liked: !isLiked 
+            reactions: (prev[postId]?.reactions || 0) + (currentUserReaction === type ? -1 : (currentUserReaction ? 0 : 1)), 
+            userReaction: currentUserReaction === type ? null : type 
         }
     }));
+    setShowReactionSelector(null);
 
     try {
-      if (isLiked) {
-        await unlikePost(postId);
-      } else {
-        await likePost(postId);
-      }
+      await reactToPost(postId, type);
     } catch (err) {
-      // Revert if failed
-      setPostStats(prev => ({
-        ...prev,
-        [postId]: { 
-            ...prev[postId], 
-            likes: (prev[postId]?.likes || 0) + (isLiked ? 1 : -1), 
-            liked: isLiked 
-        }
-      }));
-      toast.error('Failed to update like status');
+      toast.error('Failed to update reaction');
+      fetchPostStats(postId);
     }
   };
 
@@ -191,12 +206,12 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
     setCommentInputs(prev => ({ ...prev, [feedItemId]: value }));
   };
 
-  const handleCommentSubmit = async (feedItemId: string, postId: string) => {
+  const handleCommentSubmit = async (feedItemId: string, postId: string, parentId?: string) => {
     const text = commentInputs[feedItemId];
     if (!text || !text.trim() || !postId) return;
     
     try {
-      const newComment = await commentOnPost(postId, text);
+      const newComment = await commentOnPost(postId, text, parentId);
       if (newComment) {
           setPostComments(prev => ({
             ...prev,
@@ -207,8 +222,46 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
             [postId]: { ...prev[postId], comments: (prev[postId]?.comments || 0) + 1 }
           }));
           handleInputChange(feedItemId, '');
+          setReplyTo(prev => ({ ...prev, [feedItemId]: null }));
       }
     } catch (err) {}
+  };
+
+  const renderCommentsList = (postId: string, feedItemId: string, parentId: string | null = null, depth = 0) => {
+    const comments = (postComments[postId] || []).filter(c => c?.parentId === parentId);
+    if (comments.length === 0) return null;
+
+    return comments.map((comment: any) => (
+      <div key={comment.id} className="comment-thread-container" style={{ marginLeft: depth > 0 ? '40px' : '0', marginTop: '8px' }}>
+        <div className="comment-entry" style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: depth > 0 ? '24px' : '32px', color: '#adb3b8', marginTop: '4px' }} />
+          <div className="comment-bubble" style={{ flex: 1, backgroundColor: '#f2f2f2', padding: '8px 12px', borderRadius: '8px' }}>
+            <div className="comment-entry-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <strong style={{ fontSize: '13px' }}>{comment.userName || `User ${comment.userId?.substring(0,8)}`}</strong>
+                <span style={{ fontSize: '11px', color: 'var(--linkedin-secondary-text)' }}>{comment.userDesignation || 'LinkedIn Member'}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--linkedin-secondary-text)' }}>{new Date(comment.createdDate || Date.now()).toLocaleDateString()}</span>
+                {user && user.id === comment.userId && (
+                    <button onClick={() => handleDeleteComment(postId, comment.id)} className="btn-icon-small"><FontAwesomeIcon icon={faTrash} /></button>
+                )}
+              </div>
+            </div>
+            <p style={{ marginTop: '4px', fontSize: '14px' }}>{comment.content}</p>
+          </div>
+        </div>
+        <div style={{ marginLeft: depth > 0 ? '32px' : '40px', marginTop: '4px' }}>
+            <button 
+                onClick={() => setReplyTo(prev => ({ ...prev, [feedItemId]: { commentId: comment.id, userName: comment.userName } }))}
+                style={{ background: 'none', border: 'none', color: 'var(--linkedin-secondary-text)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+            >
+                Reply
+            </button>
+        </div>
+        {renderCommentsList(postId, feedItemId, comment.id, depth + 1)}
+      </div>
+    ));
   };
 
   const handleDeleteComment = async (postId: string, commentId: string) => {
@@ -229,7 +282,7 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
     }
   };
 
-  if (loading && page === 0) return (
+  if (loading && page === 0 && isInitialLoad) return (
     <div className="feed-skeleton-container" style={{ width: '100%' }}>
       <SkeletonPost />
       <SkeletonPost />
@@ -249,7 +302,9 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
         const shouldTruncate = item.content && item.content.length > 200;
         const displayContent = shouldTruncate && !isExpanded 
           ? item.content.substring(0, 200) + '...' 
-          : item.content;
+          : (item.content || '');
+
+        const postId = item.postId || item.id;
 
         return (
           <article 
@@ -260,7 +315,7 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
             <div className="post-author-row">
               {item.actorAvatar ? (
                 <img 
-                    src={`${IMAGE_BASE_URL}${item.actorAvatar}`} 
+                    src={getImageUrl(item.actorAvatar) || ''} 
                     alt={item.actorName} 
                     style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }}
                 />
@@ -273,7 +328,7 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
                 </Link>
                 <p>{item.actorDesignation || 'LinkedIn Member'}</p>
                 <span style={{ fontSize: '12px', color: 'var(--linkedin-secondary-text)' }}>
-                    {new Date(item.timestamp).toLocaleString()}
+                    {new Date(item.timestamp || item.createdDate || Date.now()).toLocaleString()}
                 </span>
               </div>
               <div style={{ marginLeft: 'auto', color: 'var(--linkedin-secondary-text)', cursor: 'pointer' }}>
@@ -282,24 +337,83 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
             </div>
             
             <div className="post-body">
-              <p className="post-content-text">
-                {displayContent}
-                {shouldTruncate && !isExpanded && (
-                  <button className="see-more-btn" onClick={() => toggleExpand(item.id)}>see more</button>
-                )}
-              </p>
+              <div 
+                className="post-content-text"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(displayContent) }}
+              />
+              {shouldTruncate && !isExpanded && (
+                <button className="see-more-btn" onClick={() => toggleExpand(item.id)}>see more</button>
+              )}
+
+              {/* Poll Rendering */}
+              {(item.type === 'POLL_CREATED' || (item.metadata && item.metadata.isPoll === 'true')) && pollDetails[postId] && (
+                <div className="poll-container" style={{ marginTop: '12px', padding: '12px', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9fafb' }}>
+                  <h4 style={{ marginBottom: '12px', fontSize: '15px' }}>{pollDetails[postId].question}</h4>
+                  <div className="poll-options">
+                    {pollDetails[postId].options.map((option: any) => {
+                      const totalVotes = pollDetails[postId].options.reduce((sum: number, opt: any) => sum + opt.voteCount, 0);
+                      const percentage = totalVotes > 0 ? Math.round((option.voteCount / totalVotes) * 100) : 0;
+                      const isVoted = pollDetails[postId].hasVoted;
+                      const isSelected = pollDetails[postId].selectedOptionId === option.id;
+
+                      return (
+                        <div key={option.id} style={{ marginBottom: '8px' }}>
+                          <button 
+                            onClick={() => !isVoted}
+                            disabled={isVoted}
+                            className={`poll-option-btn ${isSelected ? 'selected' : ''}`}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '10px',
+                              border: isSelected ? '2px solid #0a66c2' : '1px solid #0a66c2',
+                              borderRadius: '24px',
+                              background: isVoted ? '#fff' : 'transparent',
+                              color: '#0a66c2',
+                              fontWeight: '600',
+                              cursor: isVoted ? 'default' : 'pointer',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {isVoted && (
+                              <div style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: `${percentage}%`,
+                                background: isSelected ? '#dce6f1' : '#f3f6f8',
+                                zIndex: 0
+                              }}></div>
+                            )}
+                            <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between' }}>
+                              <span>{option.text}</span>
+                              {isVoted && <span>{percentage}%</span>}
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--linkedin-secondary-text)' }}>
+                    {pollDetails[postId].options.reduce((sum: number, opt: any) => sum + opt.voteCount, 0)} votes • {new Date(pollDetails[postId].expiryDate) > new Date() ? 'Poll active' : 'Poll closed'}
+                  </div>
+                </div>
+              )}
+
               {item.imageUrls && item.imageUrls.length > 0 ? (
                 <div className={`post-images-grid images-count-${Math.min(item.imageUrls.length, 4)}`}>
                   {item.imageUrls.map((url: string, idx: number) => (
                     <div key={idx} className="post-image-item">
-                      <img src={`${IMAGE_BASE_URL}${url}`} alt={`Post attachment ${idx}`} />
+                      <img src={getImageUrl(url) || ''} alt={`Post attachment ${idx}`} />
                     </div>
                   ))}
                 </div>
               ) : (
                 item.imageUrl && (
                   <div className="post-image-full">
-                    <img src={`${IMAGE_BASE_URL}${item.imageUrl}`} alt="Post" />
+                    <img src={getImageUrl(item.imageUrl) || ''} alt="Post" />
                   </div>
                 )
               )}
@@ -307,29 +421,51 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
 
             <div className="post-stats-bar">
               <div className="stat-item">
-                {(postStats[item.postId]?.likes > 0 || postStats[item.postId]?.liked) && (
+                {(postStats[postId]?.reactions > 0) && (
                   <>
-                    <div className="like-icon-circle">
-                      <FontAwesomeIcon icon={fasThumbsUp} />
+                    <div className="like-icon-circle" style={{ background: REACTION_TYPES.find(r => r.type === postStats[postId].userReaction)?.color || '#0a66c2' }}>
+                      <FontAwesomeIcon icon={REACTION_TYPES.find(r => r.type === postStats[postId].userReaction)?.icon || fasThumbsUp} />
                     </div>
-                    <span>{postStats[item.postId]?.likes || 0}</span>
+                    <span>{postStats[postId]?.reactions || 0}</span>
                   </>
                 )}
               </div>
-              <div className="stat-item" onClick={() => toggleComments(item.id, item.postId)}>
-                {postStats[item.postId]?.comments > 0 ? `${postStats[item.postId].comments} comments` : ''}
+              <div className="stat-item" onClick={() => toggleComments(item.id, postId)}>
+                {postStats[postId]?.comments > 0 ? `${postStats[postId].comments} comments` : ''}
               </div>
             </div>
             
-            <div className="interaction-bar">
-                <button 
-                  onClick={() => item.postId && handleLike(item.postId)} 
-                  className={`interaction-item ${postStats[item.postId]?.liked ? 'active' : ''}`}
+            <div className="interaction-bar" style={{ position: 'relative' }}>
+                <div 
+                  className="reaction-button-wrapper"
+                  onMouseEnter={() => setShowReactionSelector(item.id)}
+                  onMouseLeave={() => setShowReactionSelector(null)}
                 >
-                  <FontAwesomeIcon icon={postStats[item.postId]?.liked ? fasThumbsUp : farThumbsUp} />
-                  <span>Like</span>
-                </button>
-                <button onClick={() => toggleComments(item.id, item.postId)} className="interaction-item">
+                    {showReactionSelector === item.id && (
+                        <div className="reaction-selector-popup">
+                            {REACTION_TYPES.map(r => (
+                                <button 
+                                    key={r.type} 
+                                    className="reaction-icon-btn" 
+                                    onClick={() => handleReaction(postId, r.type)}
+                                    title={r.label}
+                                >
+                                    <FontAwesomeIcon icon={r.icon} style={{ color: r.color }} />
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <button 
+                      onClick={() => postId && handleReaction(postId, postStats[postId]?.userReaction || 'LIKE')} 
+                      className={`interaction-item ${postStats[postId]?.userReaction ? 'active' : ''}`}
+                      style={{ color: postStats[postId]?.userReaction ? REACTION_TYPES.find(r => r.type === postStats[postId].userReaction)?.color : 'inherit' }}
+                    >
+                      <FontAwesomeIcon icon={postStats[postId]?.userReaction ? (REACTION_TYPES.find(r => r.type === postStats[postId].userReaction)?.icon || fasThumbsUp) : farThumbsUp} />
+                      <span>{postStats[postId]?.userReaction ? REACTION_TYPES.find(r => r.type === postStats[postId].userReaction)?.label : 'Like'}</span>
+                    </button>
+                </div>
+
+                <button onClick={() => toggleComments(item.id, postId)} className="interaction-item">
                   <FontAwesomeIcon icon={farCommentDots} />
                   <span>Comment</span>
                 </button>
@@ -348,45 +484,28 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null }) => {
                 <div className="comment-input-row">
                   <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8', marginTop: '4px' }} />
                   <div className="integrated-comment-box">
-                    <input 
-                      type="text" 
-                      placeholder="Add a comment..." 
-                      value={commentInputs[item.id] || ''}
-                      onChange={(e) => handleInputChange(item.id, e.target.value)}
-                      className="integrated-input"
-                    />
+                    <div style={{ width: '100%' }}>
+                        {replyTo[item.id] && (
+                            <div className="reply-indicator" style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#f3f2ef', borderRadius: '4px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Replying to <strong>{replyTo[item.id]?.userName}</strong></span>
+                                <button onClick={() => setReplyTo(prev => ({ ...prev, [item.id]: null }))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                            </div>
+                        )}
+                        <input 
+                            type="text" 
+                            placeholder="Add a comment..." 
+                            value={commentInputs[item.id] || ''}
+                            onChange={(e) => handleInputChange(item.id, e.target.value)}
+                            className="integrated-input"
+                        />
+                    </div>
                     {(commentInputs[item.id]?.trim()) && (
-                      <button onClick={() => handleCommentSubmit(item.id, item.postId)} className="integrated-post-btn">Post</button>
+                      <button onClick={() => handleCommentSubmit(item.id, postId, replyTo[item.id]?.commentId)} className="integrated-post-btn">Post</button>
                     )}
                   </div>
                 </div>
                 <div className="comments-display-list">
-                  {(postComments[item.postId] || []).map((comment: any) => (
-                    <div key={comment.id} className="comment-entry" style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'flex-start' }}>
-                      <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8', marginTop: '4px' }} />
-                      <div className="comment-bubble" style={{ position: 'relative' }}>
-                        <div className="comment-entry-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <strong style={{ fontSize: '13px' }}>{comment.userName || `User ${comment.userId?.substring(0,8)}`}</strong>
-                            <span style={{ fontSize: '11px', color: 'var(--linkedin-secondary-text)' }}>{comment.userDesignation || 'LinkedIn Member'}</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '11px', color: 'var(--linkedin-secondary-text)' }}>{new Date(comment.createdAt).toLocaleDateString()}</span>
-                            {user && user.id === comment.userId && (
-                                <button 
-                                    onClick={() => handleDeleteComment(item.postId, comment.id)}
-                                    style={{ background: 'none', border: 'none', color: 'var(--linkedin-secondary-text)', cursor: 'pointer', padding: '4px' }}
-                                    title="Delete comment"
-                                >
-                                    <FontAwesomeIcon icon={faTrash} style={{ fontSize: '12px' }} />
-                                </button>
-                            )}
-                          </div>
-                        </div>
-                        <p style={{ marginTop: '8px' }}>{comment.content}</p>
-                      </div>
-                    </div>
-                  ))}
+                  {renderCommentsList(postId, item.id)}
                 </div>
               </div>
             )}

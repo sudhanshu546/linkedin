@@ -8,29 +8,30 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { UserProvider } from './context/UserContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ChatProvider } from './context/ChatContext';
+import { ThemeProvider } from './context/ThemeContext';
 import AuthWrapper from './components/common/AuthWrapper';
 import Layout from './components/common/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 import './Forms.css';
 
-// Lazy load pages
+// Lazy load pages from central index
 const LoginPage = lazy(() => import('./components/pages/Login/LoginPage'));
 const SignupPage = lazy(() => import('./components/pages/Signup/SignupPage'));
 const HomePage = lazy(() => import('./components/pages/Home/HomePage'));
 const ProfilePage = lazy(() => import('./components/pages/Profile/ProfilePage'));
 const JobsPage = lazy(() => import('./components/pages/Jobs/JobsPage'));
 const MessagingPage = lazy(() => import('./components/pages/Messaging/MessagingPage'));
-const UserPostsPage = lazy(() => import('./components/UserPostsPage'));
 
-// Fallback for not yet migrated pages (using old JS versions for now if needed, or just lazy loading them)
-const EditProfilePage = lazy(() => import('./components/EditProfilePage'));
-const MyNetworkPage = lazy(() => import('./components/MyNetworkPage'));
-const PostJobPage = lazy(() => import('./components/PostJobPage'));
-const JobManagementPage = lazy(() => import('./components/JobManagementPage'));
-const NotificationsPage = lazy(() => import('./components/NotificationsPage'));
-const ProfileViewsPage = lazy(() => import('./components/ProfileViewsPage'));
-const SearchResultsPage = lazy(() => import('./components/SearchResultsPage'));
+// Migrated Pages
+const EditProfilePage = lazy(() => import('./components/pages/EditProfile/EditProfilePage'));
+const MyNetworkPage = lazy(() => import('./components/pages/MyNetwork/MyNetworkPage'));
+const PostJobPage = lazy(() => import('./components/pages/PostJob/PostJobPage'));
+const JobManagementPage = lazy(() => import('./components/pages/JobManagement/JobManagementPage'));
+const NotificationsPage = lazy(() => import('./components/pages/Notifications/NotificationsPage'));
+const ProfileViewsPage = lazy(() => import('./components/pages/ProfileViews/ProfileViewsPage'));
+const SearchResultsPage = lazy(() => import('./components/pages/SearchResults/SearchResultsPage'));
+const UserPostsPage = lazy(() => import('./components/pages/UserPosts/UserPostsPage'));
 
 // Loading fallback
 function LoadingSpinner() {
@@ -52,7 +53,8 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <UserProvider>
+      <ThemeProvider>
+        <UserProvider>
         <NotificationProvider>
           <ChatProvider>
             <Suspense fallback={<LoadingSpinner />}>
@@ -200,6 +202,7 @@ function App() {
           </ChatProvider>
         </NotificationProvider>
       </UserProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

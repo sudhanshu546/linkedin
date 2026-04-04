@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getUserById } from '../api/userApi';
-import Feed from './pages/Feed/Feed';
+import { getUserById } from '../../../api/userApi';
+import Feed from '../Feed/Feed';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowLeft, faUserCircle } from '@fortawesome/free-solid-svg-icons';
-import '../App.css';
+import '../../../App.css';
+import { User } from '../../../types';
 
 const UserPostsPage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -17,7 +18,7 @@ const UserPostsPage: React.FC = () => {
     setLoading(true);
     try {
       const userData = await getUserById(userId);
-      setUser(userData.result);
+      setUser(userData);
     } catch (err) {
       console.error('Error fetching user data:', err);
     } finally {
@@ -33,6 +34,12 @@ const UserPostsPage: React.FC = () => {
 
   const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
 
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${IMAGE_BASE_URL}${url}`;
+  };
+
   return (
     <div className="page-layout three-column-grid">
       {/* Left Column: Profile Summary */}
@@ -42,7 +49,7 @@ const UserPostsPage: React.FC = () => {
           <div className="mini-card-content">
             {user?.profileImageUrl ? (
                 <img 
-                    src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} 
+                    src={getImageUrl(user.profileImageUrl) || ''} 
                     alt="Profile" 
                     className="mini-avatar-home"
                     style={{ objectFit: 'cover' }}
@@ -68,10 +75,10 @@ const UserPostsPage: React.FC = () => {
       {/* Middle Column: Posts Feed */}
       <main className="feed-column">
         <header className="page-header-row" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-          <button onClick={() => navigate(-1)} className="back-btn-circle">
+          <button onClick={() => navigate(-1)} className="back-btn-circle" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#666' }}>
             <FontAwesomeIcon icon={faArrowLeft} />
           </button>
-          <h2 style={{ fontSize: '18px', fontWeight: 600 }}>{user ? `${user.firstName}'s Activity` : 'Activity'}</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>{user ? `${user.firstName}'s Activity` : 'Activity'}</h2>
         </header>
         
         <Feed userId={userId} />
@@ -79,20 +86,20 @@ const UserPostsPage: React.FC = () => {
 
       {/* Right Column: News/Suggestions */}
       <aside className="right-column">
-        <div className="linkedin-card news-card-wrapper">
-          <h3 className="news-header">LinkedIn News</h3>
-          <ul className="news-items-list">
-            <li>
-              <h4>Tech hiring picks up in 2026</h4>
-              <span>2d ago • 12,456 readers</span>
+        <div className="linkedin-card news-card-wrapper" style={{ padding: '16px' }}>
+          <h3 className="news-header" style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 600 }}>LinkedIn News</h3>
+          <ul className="news-items-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            <li style={{ marginBottom: '16px' }}>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>Tech hiring picks up in 2026</h4>
+              <span style={{ fontSize: '12px', color: '#666' }}>2d ago • 12,456 readers</span>
             </li>
-            <li>
-              <h4>The future of AI-driven dev</h4>
-              <span>1d ago • 8,902 readers</span>
+            <li style={{ marginBottom: '16px' }}>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>The future of AI-driven dev</h4>
+              <span style={{ fontSize: '12px', color: '#666' }}>1d ago • 8,902 readers</span>
             </li>
-            <li>
-              <h4>Networking in a remote world</h4>
-              <span>3d ago • 5,612 readers</span>
+            <li style={{ marginBottom: '16px' }}>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>Networking in a remote world</h4>
+              <span style={{ fontSize: '12px', color: '#666' }}>3d ago • 5,612 readers</span>
             </li>
           </ul>
         </div>

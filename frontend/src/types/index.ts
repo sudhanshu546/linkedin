@@ -4,19 +4,23 @@
 
 // API Response Types
 export interface ApiResponse<T> {
-  status: number;
+  status: 'success' | 'fail' | 'error';
   message: string;
-  result: T;
-  success: boolean;
+  data: T;
+  metadata?: {
+    page: number;
+    size: number;
+    total: number;
+  };
 }
 
 export interface PaginatedResponse<T> {
-  result: T[];
-  pageNumber: number;
-  pageSize: number;
-  totalRecords: number;
-  totalPages?: number;
-  isLast?: boolean;
+  data: T[];
+  metadata: {
+    page: number;
+    size: number;
+    total: number;
+  };
 }
 
 // Auth Types
@@ -50,7 +54,7 @@ export interface User {
   userName: string;
   email: string;
   phoneNumber?: string;
-  profilePictureUrl?: string;
+  profileImageUrl?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -67,7 +71,7 @@ export interface Profile {
   userId: string;
   headline?: string;
   bio?: string;
-  profilePictureUrl?: string;
+  profileImageUrl?: string;
   coverPictureUrl?: string;
   location?: string;
   industry?: string;
@@ -118,17 +122,37 @@ export interface Skill {
 }
 
 // Post Types
+export interface PollOption {
+  id: string;
+  text: string;
+  voteCount: number;
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  options: PollOption[];
+  expiryDate: string;
+  hasVoted: boolean;
+  selectedOptionId?: string;
+}
+
 export interface Post {
   id: string;
   userId: string;
   user?: User;
   content: string;
-  images?: string[];
+  imageUrls?: string[];
   likeCount: number;
   commentCount: number;
   isLiked: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  createdDate: number;
+  lastModifiedDate?: number;
+  isPoll?: boolean;
+  pollQuestion?: string;
+  pollOptions?: string[];
+  pollExpiryDate?: string;
+  poll?: Poll;
 }
 
 export interface Comment {
@@ -137,13 +161,22 @@ export interface Comment {
   userId: string;
   user?: User;
   content: string;
-  createdAt: string;
-  updatedAt?: string;
+  createdDate: number;
+  lastModifiedDate?: number;
 }
 
 export interface PostCreateRequest {
   content: string;
   images?: File[];
+  isPoll?: boolean;
+  pollQuestion?: string;
+  pollOptions?: string[];
+  pollExpiryDate?: string;
+}
+
+export interface PollVoteRequest {
+  postId: string;
+  optionId: string;
 }
 
 // Job Types
@@ -171,9 +204,11 @@ export interface JobApplication {
   jobId: string;
   userId: string;
   user?: User;
-  status: 'APPLIED' | 'REVIEWING' | 'SHORTLISTED' | 'REJECTED' | 'ACCEPTED';
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   appliedDate: string;
   updatedDate?: string;
+  resumeUrl?: string;
+  coverLetter?: string;
 }
 
 export interface JobCreateRequest {
@@ -189,6 +224,29 @@ export interface JobCreateRequest {
   };
   requiredSkills: string[];
   deadline?: string;
+}
+
+// Privacy Settings Types
+export interface PrivacySettings {
+  profileVisibility: 'PUBLIC' | 'CONNECTIONS' | 'PRIVATE';
+  showEmail: boolean;
+  showConnections: boolean;
+  allowMessagesFrom: 'EVERYONE' | 'CONNECTIONS';
+}
+
+export interface PrivacySettingsDTO extends PrivacySettings {}
+
+// Analytics Types
+export interface DailyProfileView {
+  id: string;
+  profileOwnerId: string;
+  viewDate: string;
+  viewCount: number;
+}
+
+export interface ProfileDemographics {
+  titles: Record<string, number>;
+  companies: Record<string, number>;
 }
 
 // Connection Types
@@ -274,4 +332,35 @@ export interface SearchFilter {
   company?: string;
   location?: string;
   jobType?: string;
+}
+
+export type FilterOperator = 
+  | 'IS' 
+  | 'ISNOT' 
+  | 'CONTAINS' 
+  | 'NOTCONTAINS' 
+  | 'EQUALS' 
+  | 'ISEMPTY' 
+  | 'ISNOTEMPTY' 
+  | 'NOTEQUALS' 
+  | 'GREATERTHAN' 
+  | 'GREATERTHANOREQUAL' 
+  | 'LESSTHAN' 
+  | 'LESSTHANOREQUAL' 
+  | 'BETWEEN' 
+  | 'IN';
+
+export interface FilterCriteria {
+  columnName: string;
+  operator: FilterOperator;
+  values: string[];
+  relation?: 'AND' | 'OR';
+  sortDirection?: 'ASC' | 'DESC';
+}
+
+export interface AdvanceSearchCriteria {
+  pageNumber: number;
+  pageSize: number;
+  filters: FilterCriteria[];
+  relation?: 'AND' | 'OR';
 }

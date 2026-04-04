@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
     setError('');
     try {
       const response = await userLogin({ userName, password });
-      const data = response.result;
+      const data = response.data;
       if (data) {
         setTokens(data);
         await refetchUser(); // Re-fetch user after login

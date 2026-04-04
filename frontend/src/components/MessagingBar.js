@@ -6,10 +6,21 @@ import { getMyConnections } from '../api/profileApi';
 import { getUserById } from '../api/userApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronUp, faChevronDown, faEdit, faSearch, faTimes, faPaperPlane, faUserCircle } from '@fortawesome/free-solid-svg-icons';
+import { IMAGE_BASE_URL } from '../constants/api';
 
 const MessagingBar = () => {
   const { user } = useUser();
-  const { messages, sendMessage, setChatHistory, connected } = useChat();
+  const { 
+      messages, 
+      sendMessage, 
+      setChatHistory, 
+      connected, 
+      onlineUsers, 
+      typingStatus, 
+      sendTyping, 
+      sendReadReceipt,
+      markAsRead
+  } = useChat();
   const [isOpen, setIsOpen] = useState(false);
   const [activeChat, setActiveChat] = useState(null); 
   const [connections, setConnections] = useState([]);
@@ -17,6 +28,7 @@ const MessagingBar = () => {
   const [messageInput, setMessageInput] = useState('');
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
   // Draggable state
   const [isDragging, setIsDragging] = useState(false);
@@ -29,17 +41,19 @@ const MessagingBar = () => {
     if (!user) return;
     try {
       const res = await getMyConnections();
-      const connectionsList = Array.isArray(res) ? res : (res?.result || []);
+      const connectionsList = Array.isArray(res) ? res : (res?.data || []);
       
       const detailedConnections = await Promise.all(connectionsList.map(async (conn) => {
+          if (!conn) return null;
           const otherId = conn.requesterId === user.id ? conn.receiverId : conn.requesterId;
           try {
               const userRes = await getUserById(otherId);
-              const otherUser = userRes.result;
+              const otherUser = userRes;
+              if (!otherUser) return null;
               return {
                   ...conn,
                   otherUserId: otherId,
-                  otherUserName: `${otherUser.firstName} ${otherUser.lastName}`,
+                  otherUserName: `${otherUser.firstName || ''} ${otherUser.lastName || ''}`.trim() || 'LinkedIn User',
                   otherUserAvatar: otherUser.profileImageUrl
               };
           } catch (e) {
@@ -47,7 +61,7 @@ const MessagingBar = () => {
           }
       }));
 
-      setConnections(detailedConnections);
+      setConnections(detailedConnections.filter(c => c !== null));
     } catch (err) {
       console.error('Failed to fetch connections for chat:', err);
     }
@@ -134,13 +148,30 @@ const MessagingBar = () => {
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   const handleOpenChat = async (conn) => {
+    if (!conn?.otherUserId) return;
     setActiveChat({ id: conn.otherUserId, name: conn.otherUserName });
+    markAsRead(conn.otherUserId);
+    sendReadReceipt(conn.otherUserId);
     try {
       const res = await getChatMessages(conn.otherUserId);
-      setChatHistory(conn.otherUserId, res.result || []);
+      setChatHistory(conn.otherUserId, Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Failed to fetch chat history:', err);
     }
+  };
+
+  const handleInputChange = (e) => {
+      const val = e.target.value;
+      setMessageInput(val);
+      
+      if (activeChat) {
+          sendTyping(activeChat.id, true);
+          
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => {
+              sendTyping(activeChat.id, false);
+          }, 3000);
+      }
   };
 
   const handleSendMessage = (e) => {
@@ -148,6 +179,8 @@ const MessagingBar = () => {
     if (!messageInput.trim() || !activeChat) return;
     sendMessage(activeChat.id, messageInput);
     setMessageInput('');
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendTyping(activeChat.id, false);
   };
 
   if (!user) return null;
@@ -175,7 +208,7 @@ const MessagingBar = () => {
         style={{ cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
       >
         <div className="header-left">
-          <div className="user-status-dot"></div>
+          <div className={`user-status-dot ${connected ? 'online' : ''}`}></div>
           <span>Messaging</span>
         </div>
         <div className="header-right">
@@ -208,14 +241,21 @@ const MessagingBar = () => {
                 {filteredConnections.length > 0 ? (
                   filteredConnections.map(conn => (
                     <div key={conn.id} className="connection-chat-item" onClick={() => handleOpenChat(conn)}>
-                      {conn.otherUserAvatar ? (
-                          <img src={`http://localhost:9191/us/uploads/${conn.otherUserAvatar}`} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
-                      ) : (
-                          <FontAwesomeIcon icon={faUserCircle} className="chat-avatar" />
-                      )}
+                      <div style={{ position: 'relative' }}>
+                        {conn.otherUserAvatar ? (
+                            <img src={`${IMAGE_BASE_URL}${conn.otherUserAvatar}`} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                            <FontAwesomeIcon icon={faUserCircle} className="chat-avatar" />
+                        )}
+                        {onlineUsers.has(conn.otherUserId) && (
+                            <div className="user-status-dot online" style={{ position: 'absolute', bottom: 0, right: 0, border: '2px solid white' }}></div>
+                        )}
+                      </div>
                       <div className="chat-item-info">
                         <div className="chat-item-name">{conn.otherUserName}</div>
-                        <div className="chat-item-preview">Click to start chatting</div>
+                        <div className="chat-item-preview">
+                            {typingStatus[conn.otherUserId] ? <span style={{ color: '#057642', fontStyle: 'italic' }}>Typing...</span> : 'Click to start chatting'}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -227,20 +267,35 @@ const MessagingBar = () => {
           ) : (
             <div className="active-chat-window">
               <div className="active-chat-header">
-                <span onClick={() => setActiveChat(null)} style={{ cursor: 'pointer', fontWeight: 600 }}>
-                  ← {activeChat.name}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span onClick={() => setActiveChat(null)} style={{ cursor: 'pointer', fontWeight: 600 }}>
+                    ← {activeChat.name}
+                    </span>
+                    {onlineUsers.has(activeChat.id) && <div className="user-status-dot online"></div>}
+                </div>
                 <FontAwesomeIcon icon={faTimes} onClick={() => setActiveChat(null)} style={{ cursor: 'pointer' }} />
               </div>
               <div className="messages-list">
                 {(messages[activeChat.id] || []).map((msg, idx) => (
                   <div key={idx} className={`message-bubble ${msg.senderId === user.id ? 'sent' : 'received'}`}>
                     <div className="message-text">{msg.content}</div>
-                    <div className="message-time">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                        <div className="message-time">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        {msg.senderId === user.id && (
+                            <span style={{ fontSize: '10px', color: msg.isRead ? '#0a66c2' : '#666' }}>
+                                {msg.isRead ? '✓✓' : '✓'}
+                            </span>
+                        )}
                     </div>
                   </div>
                 ))}
+                {typingStatus[activeChat.id] && (
+                    <div className="typing-indicator" style={{ fontSize: '12px', color: '#666', padding: '4px 12px' }}>
+                        {activeChat.name} is typing...
+                    </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
               <form className="message-input-form" onSubmit={handleSendMessage}>
@@ -248,7 +303,7 @@ const MessagingBar = () => {
                   type="text" 
                   placeholder="Write a message..." 
                   value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
+                  onChange={handleInputChange}
                 />
                 <button type="submit" disabled={!messageInput.trim() || !connected}>
                   <FontAwesomeIcon icon={faPaperPlane} />

@@ -15,18 +15,18 @@ import {
   getConnectionStatus,
   respondToConnectionRequest,
   cancelConnectionRequest,
-  getUserPosts,
   getProfileViewCount,
   updateCoverImage,
 } from '../../../api/profileApi';
 import Feed from '../Feed/Feed';
 import '../../../App.css';
+import { IMAGE_BASE_URL } from '../../../constants/api';
 
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [userDetails, setUserDetails] = useState<any>(null);
-  const [userPosts, setUserPosts] = useState<any[]>([]);
+  const [userPostsCount, setUserPostsCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [viewCount, setViewCount] = useState(0);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
@@ -53,20 +53,11 @@ const ProfilePage: React.FC = () => {
 
       let userData: any;
       let profData: any;
-      let posts: any[] = [];
 
       if (isOwn) {
         userData = await getAuthenticatedUser();
-        const internalId = userData.id;
         profData = await getMyProfile();
         
-        try {
-            const postsRes = await getUserPosts(internalId);
-            posts = postsRes?.content || (Array.isArray(postsRes) ? postsRes : []);
-        } catch (e) {
-            console.error("Error fetching posts:", e);
-        }
-
         try {
             const vc = await getProfileViewCount();
             setViewCount(vc || 0);
@@ -77,7 +68,6 @@ const ProfilePage: React.FC = () => {
         try {
             userData = await getUserById(effectiveKeycloakId);
         } catch (e) {
-            // If fetching by Keycloak ID fails, maybe the param was already an internal ID
             userData = await getUserById(effectiveKeycloakId);
         }
         
@@ -90,18 +80,10 @@ const ProfilePage: React.FC = () => {
         } catch (e) {
             console.error("Error fetching connection status:", e);
         }
-
-        try {
-            const postsRes = await getUserPosts(internalId);
-            posts = postsRes?.content || (Array.isArray(postsRes) ? postsRes : []);
-        } catch (e) {
-            console.error("Error fetching user posts:", e);
-        }
       }
 
       setUserDetails(userData);
       setProfile(profData);
-      setUserPosts(posts);
     } catch (err) {
       console.error('Error loading profile:', err);
       toast.error('Failed to load profile data');
@@ -114,7 +96,11 @@ const ProfilePage: React.FC = () => {
     fetchUserData();
   }, [fetchUserData]);
 
-  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${IMAGE_BASE_URL}${url}`;
+  };
 
   const handleAction = async (actionFunc: Function, ...args: any[]) => {
     setActionLoading(true);
@@ -151,6 +137,12 @@ const ProfilePage: React.FC = () => {
     navigate('/', { state: { openCreatePost: true } });
   };
 
+  const handlePostsLoaded = useCallback((posts: any[]) => {
+      if (posts.length !== userPostsCount) {
+          setUserPostsCount(posts.length);
+      }
+  }, [userPostsCount]);
+
   if (loading) return (
     <div className="loading-container">
       <div className="spinner"></div>
@@ -164,7 +156,7 @@ const ProfilePage: React.FC = () => {
           <div 
             className="profile-cover" 
             style={{ 
-                backgroundImage: profile?.coverImageUrl ? `url(${IMAGE_BASE_URL}${profile.coverImageUrl})` : 'linear-gradient(to right, #a0b4b7, #dce6e9)',
+                backgroundImage: profile?.coverImageUrl ? `url(${getImageUrl(profile.coverImageUrl)})` : 'linear-gradient(to right, #a0b4b7, #dce6e9)',
                 position: 'relative'
             }}
           >
@@ -183,7 +175,7 @@ const ProfilePage: React.FC = () => {
           </div>
           <div className="profile-avatar-wrap">
             {userDetails?.profileImageUrl ? (
-                <img src={`${IMAGE_BASE_URL}${userDetails.profileImageUrl}`} alt="Profile" className="profile-main-avatar" style={{ objectFit: 'cover' }} />
+                <img src={getImageUrl(userDetails.profileImageUrl) || ''} alt="Profile" className="profile-main-avatar" style={{ objectFit: 'cover' }} />
             ) : (
                 <div className="profile-main-avatar" style={{ backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '80px', color: '#adb3b8' }}>
                     <FontAwesomeIcon icon={faUserCircle} />
@@ -288,15 +280,19 @@ const ProfilePage: React.FC = () => {
           </div>
           <div className="card-body" style={{ padding: '0' }}>
             {userDetails?.id && (
-              <Feed userId={userDetails.id} limit={1} />
+              <Feed 
+                userId={userDetails.id} 
+                limit={1} 
+                onPostsLoaded={handlePostsLoaded}
+              />
             )}
-            {userPosts.length === 0 && !loading && (
+            {userPostsCount === 0 && !loading && (
               <div style={{ padding: '24px', textAlign: 'center' }}>
                 <p style={{ color: '#666' }}>No recent activity to show.</p>
               </div>
             )}
           </div>
-          {userPosts.length > 0 && (
+          {userPostsCount > 0 && (
             <div className="card-footer" style={{ textAlign: 'center', padding: '12px', borderTop: '1px solid #eee' }}>
                 <Link to={`/profile/${userDetails?.id}/posts`} style={{ color: '#666', fontWeight: 600, textDecoration: 'none', fontSize: '14px' }}>Show all posts →</Link>
             </div>
@@ -399,7 +395,7 @@ const ProfilePage: React.FC = () => {
                 <p style={{ fontSize: '12px', color: '#666' }}>Ad</p>
                 <p style={{ fontSize: '14px', fontWeight: 600 }}>Unlock your full potential with LinkedIn Premium</p>
                 <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
-                    <img src={userDetails?.profileImageUrl ? `${IMAGE_BASE_URL}${userDetails.profileImageUrl}` : 'https://via.placeholder.com/60'} alt="User" style={{ width: '60px', height: '60px', borderRadius: '50%' }} />
+                    <img src={getImageUrl(userDetails?.profileImageUrl) || 'https://via.placeholder.com/60'} alt="User" style={{ width: '60px', height: '60px', borderRadius: '50%' }} />
                 </div>
                 <button className="secondary-button" style={{ width: '100%', borderRadius: '20px' }}>Try for Free</button>
             </div>

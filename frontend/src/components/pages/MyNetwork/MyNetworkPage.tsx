@@ -4,94 +4,106 @@ import {
   sendConnectionRequest,
   getPendingRequests,
   getConnections
-} from '../api/profileApi';
+} from '../../../api/profileApi';
 import { 
   getUserById, 
   getAllUsers
-} from '../api/userApi';
+} from '../../../api/userApi';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faUsers, 
-  faUserCircle, 
-  faHashtag, 
-  faCalendarAlt, 
-  faFileAlt, 
+  faUserCircle,  
   faUserPlus,
   faClock
 } from '@fortawesome/free-solid-svg-icons';
-import { useUser } from '../context/UserContext';
-import '../App.css';
+import { useUser } from '../../../context/UserContext';
+import '../../../App.css';
+import { User } from '../../../types';
+import { IMAGE_BASE_URL } from '../../../constants/api';
 
-const MyNetworkPage = () => {
+interface PendingRequest {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  status: string;
+  sender?: User;
+}
+
+const MyNetworkPage: React.FC = () => {
   const { user: currentUser } = useUser();
   const navigate = useNavigate();
-  const [requests, setRequests] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [connections, setConnections] = useState([]);
+  const [requests, setRequests] = useState<PendingRequest[]>([]);
+  const [suggestions, setSuggestions] = useState<User[]>([]);
+  const [connections, setConnections] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('invitations'); 
+  const [view, setView] = useState<'invitations' | 'connections'>('invitations'); 
 
   const fetchInitialData = useCallback(async () => {
     if (!currentUser) return;
     setLoading(true);
     try {
-      // API calls return data.result directly now
-      const [pendingData, allUsersRes, connectionsData] = await Promise.all([
+      const [pendingRes, allUsersRes, connectionsRes] = await Promise.all([
         getPendingRequests(),
         getAllUsers(0, 100), 
         getConnections()
       ]);
 
+      const pendingData = Array.isArray(pendingRes) ? pendingRes : (pendingRes as any)?.data || [];
+      const connectionsData = Array.isArray(connectionsRes) ? connectionsRes : (connectionsRes as any)?.data || [];
+
+      // Fetch senders for pending requests
       const requestsWithUsers = await Promise.all(
-        (pendingData || []).map(async (req) => {
+        pendingData.map(async (req: any) => {
           try {
             const userData = await getUserById(req.requesterId); 
             return { ...req, sender: userData };
           } catch (err) {
-            return { ...req, sender: { firstName: 'User', lastName: req.requesterId.substring(0,8) } };
+            return { ...req, sender: { id: req.requesterId, firstName: 'LinkedIn', lastName: 'User', email: '' } as User };
           }
         })
       );
       setRequests(requestsWithUsers);
 
+      // Fetch detailed connection info
       const connectedUsers = await Promise.all(
-        (connectionsData || []).map(async (conn) => {
+        connectionsData.map(async (conn: any) => {
             const otherId = conn.requesterId === currentUser.id ? conn.receiverId : conn.requesterId;
             try {
                 const userData = await getUserById(otherId);
                 return userData;
             } catch (err) {
-                return { id: otherId, firstName: 'User', lastName: 'Connected', email: 'Connected' };
+                return { id: otherId, firstName: 'LinkedIn', lastName: 'User', email: '' } as User;
             }
         })
       );
-      setConnections(connectedUsers);
+      setConnections(connectedUsers.filter(u => u !== null));
 
-      // --- Filtering Logic ---
-      const connectedAndPendingIds = new Set();
-      connectedAndPendingIds.add(currentUser.id); // Don't suggest self
+      // Filtering logic for suggestions
+      const connectedAndPendingIds = new Set<string>();
+      connectedAndPendingIds.add(currentUser.id);
 
-      (connectionsData || []).forEach(c => {
+      connectionsData.forEach((c: any) => {
           connectedAndPendingIds.add(c.requesterId);
           connectedAndPendingIds.add(c.receiverId);
       });
 
-      (pendingData || []).forEach(r => {
+      pendingData.forEach((r: any) => {
           connectedAndPendingIds.add(r.requesterId);
           connectedAndPendingIds.add(r.receiverId);
       });
       
-      const allUsers = allUsersRes?.content || allUsersRes || [];
+      const allUsersData = Array.isArray(allUsersRes) ? allUsersRes : (allUsersRes as any)?.data || [];
+      const suggestionList = Array.isArray(allUsersData) ? allUsersData : (allUsersData as any).data || [];
 
-      const filteredSuggestions = allUsers.filter(u => 
-        !connectedAndPendingIds.has(u.id)
+      const finalSuggestions = suggestionList.filter((u: User) => 
+        u && u.id && !connectedAndPendingIds.has(u.id)
       ).slice(0, 12);
 
-      setSuggestions(filteredSuggestions);
+      setSuggestions(finalSuggestions);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching network data:', err);
       toast.error('Failed to load network data.');
     } finally {
       setLoading(false);
@@ -102,7 +114,7 @@ const MyNetworkPage = () => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const handleAction = async (id, accept) => {
+  const handleAction = async (id: string, accept: boolean) => {
     try {
       await respondToConnectionRequest(id, accept);
       setRequests(requests.filter(req => req.id !== id));
@@ -115,18 +127,34 @@ const MyNetworkPage = () => {
     }
   };
 
-  const handleConnect = async (userId) => {
+  const handleConnect = async (userId: string) => {
       try {
           await sendConnectionRequest(userId);
           toast.success('Connection request sent!');
           setSuggestions(suggestions.filter(s => s.id !== userId));
       } catch (err) {
-          toast.error('Already sent or failed.');
+          toast.error('Failed to send request.');
       }
   };
 
-  const handleMessageClick = (conn) => {
+  const handleMessageClick = (conn: User) => {
     navigate(`/messaging?userId=${conn.id}&userName=${encodeURIComponent(conn.firstName + ' ' + conn.lastName)}`);
+  };
+
+  const renderAvatar = (user?: User, size: "3x" | "4x" = "3x") => {
+      if (user?.profileImageUrl) {
+          return <img 
+            src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} 
+            alt="" 
+            style={{ 
+                width: size === "3x" ? "48px" : "80px", 
+                height: size === "3x" ? "48px" : "80px", 
+                borderRadius: "50%", 
+                objectFit: "cover" 
+            }} 
+          />;
+      }
+      return <FontAwesomeIcon icon={faUserCircle} size={size} style={{ color: '#adb3b8' }} />;
   };
 
   if (loading) return (
@@ -177,22 +205,6 @@ const MyNetworkPage = () => {
                 <div style={{ flex: 1 }}>Pending Invitations</div>
                 <span style={{ color: '#666' }}>{requests.length}</span>
             </li>
-            <li style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: '#666' }}>
-                <FontAwesomeIcon icon={faUserCircle} style={{ width: '20px' }} /> 
-                <span>Following & followers</span>
-            </li>
-            <li style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: '#666' }}>
-                <FontAwesomeIcon icon={faCalendarAlt} style={{ width: '20px' }} /> 
-                <span>Events</span>
-            </li>
-            <li style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: '#666' }}>
-                <FontAwesomeIcon icon={faFileAlt} style={{ width: '20px' }} /> 
-                <span>Newsletters</span>
-            </li>
-            <li style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: '#666' }}>
-                <FontAwesomeIcon icon={faHashtag} style={{ width: '20px' }} /> 
-                <span>Hashtags</span>
-            </li>
           </ul>
         </div>
       </aside>
@@ -202,7 +214,6 @@ const MyNetworkPage = () => {
             <div className="linkedin-card" style={{ marginBottom: '16px' }}>
                 <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '400' }}>Invitations ({requests.length})</h3>
-                    {requests.length > 0 && <button className="btn-secondary-round" style={{ fontSize: '14px', padding: '4px 12px' }}>Manage</button>}
                 </div>
                 {requests.length === 0 ? (
                     <div style={{ padding: '32px', textAlign: 'center', color: '#666' }}>
@@ -213,7 +224,7 @@ const MyNetworkPage = () => {
                     {requests.map((req) => (
                         <div key={req.id} className="invitation-item" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div className="sender-info" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                <FontAwesomeIcon icon={faUserCircle} size="3x" style={{ color: '#ccc' }} />
+                                {renderAvatar(req.sender, "3x")}
                                 <div className="sender-details">
                                 <Link to={`/profile/${req.sender?.id || ''}`} style={{ textDecoration: 'none' }}>
                                     <h4 style={{ margin: 0, fontSize: '14px', color: 'rgba(0,0,0,0.9)', fontWeight: '600' }}>{req.sender?.firstName} {req.sender?.lastName}</h4>
@@ -246,7 +257,7 @@ const MyNetworkPage = () => {
                         {connections.map((conn) => (
                             <div key={conn.id} className="invitation-item" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div className="sender-info" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                    <FontAwesomeIcon icon={faUserCircle} size="3x" style={{ color: '#ccc' }} />
+                                    {renderAvatar(conn, "3x")}
                                     <div className="sender-details">
                                         <Link to={`/profile/${conn.id}`} style={{ textDecoration: 'none' }}>
                                             <h4 style={{ margin: 0, fontSize: '14px', color: 'rgba(0,0,0,0.9)', fontWeight: '600' }}>{conn.firstName} {conn.lastName}</h4>
@@ -273,12 +284,11 @@ const MyNetworkPage = () => {
         <div className="linkedin-card">
             <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between' }}>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '400' }}>People you may know</h3>
-                <Link to="/search" style={{ fontSize: '14px', color: '#666', textDecoration: 'none', fontWeight: '600' }}>See all</Link>
             </div>
             <div className="suggestions-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', padding: '12px', display: 'grid' }}>
                 {suggestions.map(userSuggestion => (
                     <div key={userSuggestion.id} className="suggestion-card" style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '12px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
-                        <FontAwesomeIcon icon={faUserCircle} size="4x" style={{ color: '#adb3b8', marginBottom: '8px' }} />
+                        {renderAvatar(userSuggestion, "4x")}
                         <Link to={`/profile/${userSuggestion.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                             <h4 style={{ margin: '4px 0', fontSize: '14px', fontWeight: '600' }}>{userSuggestion.firstName} {userSuggestion.lastName}</h4>
                         </Link>

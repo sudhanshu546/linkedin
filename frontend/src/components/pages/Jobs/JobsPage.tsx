@@ -20,6 +20,8 @@ const JobsPage: React.FC = () => {
     expLevel: ''
   });
   const [applying, setApplying] = useState(false);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [applyForm, setApplyForm] = useState({ resumeUrl: '', coverLetter: '' });
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -82,11 +84,16 @@ const JobsPage: React.FC = () => {
     setSearchFilters({ ...searchFilters, [e.target.name]: e.target.value });
   };
 
-  const handleApply = async (jobId: string) => {
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedJob) return;
+
     setApplying(true);
     try {
-      await applyForJob(jobId);
+      await applyForJob(selectedJob.id, applyForm.resumeUrl, applyForm.coverLetter);
       toast.success('Application submitted!');
+      setShowApplyModal(false);
+      setApplyForm({ resumeUrl: '', coverLetter: '' });
       const apps = await getMyApplications();
       setMyApps(apps || []);
     } catch (err: any) {
@@ -260,11 +267,50 @@ const JobsPage: React.FC = () => {
               ) : isApplied(selectedJob.id) ? (
                 <button className="btn-secondary-round" disabled style={{ opacity: 0.6 }}>Applied</button>
               ) : (
-                <button className="btn-primary-round" onClick={() => handleApply(selectedJob.id)} disabled={applying}>
+                <button className="btn-primary-round" onClick={() => setShowApplyModal(true)} disabled={applying}>
                   {applying ? 'Applying...' : 'Easy Apply'}
                 </button>
               )}
             </div>
+
+            {/* Apply Modal */}
+            {showApplyModal && (
+              <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+                <div className="modal-content linkedin-card" style={{ width: '500px', padding: '24px', position: 'relative' }}>
+                  <h2 style={{ margin: '0 0 16px', fontSize: '20px' }}>Apply to {selectedJob.title}</h2>
+                  <form onSubmit={handleApply}>
+                    <div className="form-group" style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Resume Link (S3/MinIO URL)</label>
+                      <input 
+                        type="text" 
+                        placeholder="Paste your resume link here"
+                        value={applyForm.resumeUrl}
+                        onChange={(e) => setApplyForm({...applyForm, resumeUrl: e.target.value})}
+                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: '24px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Cover Letter (Optional)</label>
+                      <textarea 
+                        rows={4} 
+                        placeholder="Tell the recruiter why you're a great fit"
+                        value={applyForm.coverLetter}
+                        onChange={(e) => setApplyForm({...applyForm, coverLetter: e.target.value})}
+                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', resize: 'vertical' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                      <button type="button" onClick={() => setShowApplyModal(false)} className="btn-secondary-round" style={{ border: 'none' }}>Cancel</button>
+                      <button type="submit" className="btn-primary-round" disabled={applying}>
+                        {applying ? 'Submitting...' : 'Submit Application'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
             <div style={{ marginTop: '24px' }}>
               <h4 style={{ marginBottom: '8px', fontSize: '16px' }}>About the job</h4>
               <p style={{ fontSize: '14px', lineHeight: '1.5', whiteSpace: 'pre-wrap', color: 'var(--linkedin-text)' }}>{selectedJob.description}</p>

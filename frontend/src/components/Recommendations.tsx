@@ -1,60 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getRecommendations } from '../../api/profileApi'; // Assuming recommendations endpoint is here
-import { useUser } from '../../context/UserContext'; // To get current user ID for connection status
+import { getRecommendations, sendConnectionRequest } from '../api/profileApi';
+import { getUserById } from '../api/userApi';
+import { useUser } from '../context/UserContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUserCircle, faUserPlus } from '@fortawesome/free-solid-svg-icons'; // Add icons needed
-import { sendConnectionRequest } from '../../api/profileApi'; // Assuming connection request is handled by profileApi
+import { faUserCircle, faUserPlus } from '@fortawesome/free-solid-svg-icons';
+import { IMAGE_BASE_URL } from '../constants/api';
+import { toast } from 'react-toastify';
 
 interface Recommendation {
-  id: string; // Keycloak ID or internal ID
+  id: string;
   firstName: string;
   lastName: string;
   headline?: string;
-  profilePictureUrl?: string;
-  // Add other relevant fields if available from the backend
+  profileImageUrl?: string;
 }
 
 const Recommendations: React.FC = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser(); // Get current user to avoid recommending self and for connection status
+  const { user } = useUser();
 
   const fetchRecommendations = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getRecommendations();
-      // The backend currently returns a list of UUIDs.
-      // We need to fetch user details for each recommendation.
-      // This part might need further backend enhancement to return full user details directly.
-      // For now, we'll assume the backend returns enough info or we'll fetch user details.
-      // Example: Assuming backend returns a list of user IDs for now.
-      // If backend returns Recommendation object, adjust mapping accordingly.
+      const res = await getRecommendations();
+      // Handle both ApiResponse and direct array
+      const data = Array.isArray(res) ? res : (res as any)?.data || [];
       
-      // Placeholder for fetching full user details if backend only returns IDs
+      if (data.length === 0) {
+          setRecommendations([]);
+          return;
+      }
+
       const detailedRecommendations = await Promise.all(data.map(async (recId: string) => {
+          if (typeof recId !== 'string') return null;
           try {
-              // Assuming getUserById returns basic user info. May need to adjust.
               const userDetails = await getUserById(recId); 
+              if (!userDetails) return null;
               return {
                   id: recId, 
-                  firstName: userDetails?.firstName || 'User',
-                  lastName: userDetails?.lastName || '',
-                  headline: userDetails?.headline || 'LinkedIn Member',
-                  profilePictureUrl: userDetails?.profilePictureUrl,
+                  firstName: userDetails.firstName || 'User',
+                  lastName: userDetails.lastName || '',
+                  headline: userDetails.userName || 'LinkedIn Member',
+                  profileImageUrl: userDetails.profileImageUrl,
               };
           } catch (userErr) {
               console.error(`Error fetching details for user ${recId}:`, userErr);
-              return { id: recId, firstName: 'User', lastName: '', headline: 'LinkedIn Member', profilePictureUrl: '' };
+              return null; // Skip failed users instead of breaking all
           }
       }));
       
-      setRecommendations(detailedRecommendations);
+      setRecommendations(detailedRecommendations.filter((r): r is Recommendation => r !== null));
     } catch (err: any) {
       console.error('Error fetching recommendations:', err);
-      setError('Failed to load recommendations.');
+      // Don't show error to user for side-bar component, just log it
     } finally {
       setLoading(false);
     }
@@ -64,7 +66,15 @@ const Recommendations: React.FC = () => {
     fetchRecommendations();
   }, []);
 
-  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
+  const handleConnect = async (targetUserId: string) => {
+      try {
+          await sendConnectionRequest(targetUserId);
+          toast.success('Connection request sent!');
+          setRecommendations(prev => prev.filter(r => r.id !== targetUserId));
+      } catch (err) {
+          toast.error('Failed to send request.');
+      }
+  };
 
   if (loading) return (
     <div className="linkedin-card recommendations-card">
@@ -72,43 +82,40 @@ const Recommendations: React.FC = () => {
       <div className="card-body" style={{ padding: '16px' }}><div className="spinner-small"></div></div>
     </div>
   );
-  if (error) return (
-    <div className="linkedin-card recommendations-card">
-      <div className="card-header"><h3>People you may know</h3></div>
-      <div className="card-body" style={{ padding: '16px', color: 'red' }}>{error}</div>
-    </div>
-  );
-  if (recommendations.length === 0) return (
-    <div className="linkedin-card recommendations-card">
-      <div className="card-header"><h3>People you may know</h3></div>
-      <div className="card-body" style={{ padding: '16px', color: '#666' }}>No recommendations available at the moment.</div>
-    </div>
-  );
+
+  if (recommendations.length === 0) return null;
 
   return (
     <div className="linkedin-card recommendations-card">
       <div className="card-header">
         <h3>People you may know</h3>
-        {/* Potentially add a 'See all' link */}
       </div>
       <div className="card-body">
         {recommendations.map(rec => (
           <div key={rec.id} className="recommendation-item">
-            {rec.profilePictureUrl ? (
-              <img src={`${IMAGE_BASE_URL}${rec.profilePictureUrl}`} alt="Profile" className="avatar-md" style={{ objectFit: 'cover' }} />
+            {rec.profileImageUrl ? (
+              <img src={`${IMAGE_BASE_URL}${rec.profileImageUrl}`} alt="Profile" className="avatar-md" style={{ objectFit: 'cover' }} />
             ) : (
-              <FontAwesomeIcon icon={faUserCircle} className="avatar-md-icon" />
+              <FontAwesomeIcon icon={faUserCircle} className="avatar-md-icon" style={{ fontSize: '48px', color: '#adb3b8' }} />
             )}
             <div className="recommendation-info">
               <Link to={`/profile/${rec.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <h4>{rec.firstName} {rec.lastName}</h4>
+                <h4 style={{ fontSize: '14px', margin: 0 }}>{rec.firstName} {rec.lastName}</h4>
               </Link>
-              <p>{rec.headline}</p>
-              {/* Placeholder for Connect button - requires fetching connection status */}
+              <p style={{ fontSize: '12px', color: '#666', margin: '2px 0 8px' }}>{rec.headline}</p>
               <button 
                 className="primary-button-small" 
-                onClick={() => {/* handleConnect(rec.id) */}}
-                style={{ padding: '6px 12px', fontSize: '13px' }}
+                onClick={() => handleConnect(rec.id)}
+                style={{ 
+                    padding: '4px 12px', 
+                    fontSize: '13px', 
+                    borderRadius: '16px',
+                    border: '1px solid #0a66c2',
+                    backgroundColor: 'transparent',
+                    color: '#0a66c2',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                }}
               >
                 <FontAwesomeIcon icon={faUserPlus} style={{ marginRight: '6px' }} /> Connect
               </button>

@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { useNotifications } from '../context/NotificationContext';
+import { useNotifications } from '../../../context/NotificationContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell, faTimes } from '@fortawesome/free-solid-svg-icons';
-import '../App.css';
+import '../../../App.css';
+import { Notification } from '../../../types';
 
-const NotificationsPage = () => {
+const NotificationsPage: React.FC = () => {
   const { notifications, markAsRead } = useNotifications();
-  const [selectedNotif, setSelectedNotif] = useState(null);
+  const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
 
-  const handleNotifClick = async (notif) => {
+  const handleNotifClick = async (notif: Notification) => {
     setSelectedNotif(notif);
-    if (notif.status === 0 || notif.read === false) {
+    if (!notif.read) {
       markAsRead(notif.id);
     }
   };
@@ -30,8 +31,8 @@ const NotificationsPage = () => {
       {/* Column 2: Middle (Notifications List) */}
       <main className="feed-column">
         <div className="linkedin-card">
-          <div className="card-header">
-            <h3>Notifications</h3>
+          <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #eee' }}>
+            <h3 style={{ margin: 0, fontSize: '18px' }}>Notifications</h3>
           </div>
           {notifications.length === 0 ? (
             <div className="card-body" style={{ textAlign: 'center', padding: '48px' }}>
@@ -43,22 +44,22 @@ const NotificationsPage = () => {
               {notifications.map((notif) => (
                 <div 
                   key={notif.id} 
-                  className={`notification-item ${notif.status === 0 || notif.read === false ? 'unread' : ''}`}
+                  className={`notification-item ${!notif.read ? 'unread' : ''}`}
                   onClick={() => handleNotifClick(notif)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', padding: '16px', borderBottom: '1px solid #eee', display: 'flex', gap: '12px' }}
                 >
-                  <div className="notif-icon-circle">
+                  <div className="notif-icon-circle" style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#666' }}>
                       <FontAwesomeIcon icon={faBell} />
                   </div>
-                  <div className="notification-details" style={{ flex: 1, marginLeft: '12px' }}>
+                  <div className="notification-details" style={{ flex: 1 }}>
                     <strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>
-                      {notif.type || notif.heading || 'Notification'}
+                      {notif.type.replace('_', ' ')}
                     </strong>
                     <p style={{ margin: 0, fontSize: '14px', color: 'var(--linkedin-text)' }}>
-                      {notif.message || notif.notification}
+                      {notif.message}
                     </p>
                     <span style={{ fontSize: '12px', color: 'var(--linkedin-secondary-text)', marginTop: '4px', display: 'inline-block' }}>
-                      {new Date(notif.createdAt || notif.createdDate).toLocaleString()}
+                      {new Date(notif.createdAt).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -83,34 +84,34 @@ const NotificationsPage = () => {
 
       {/* Detail Modal */}
       {selectedNotif && (
-        <div className="modal-overlay" onClick={() => setSelectedNotif(null)}>
-          <div className="linkedin-card modal-content-notif" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Notification Detail</h3>
-              <button className="close-modal-btn" onClick={() => setSelectedNotif(null)}>
+        <div className="modal-overlay" onClick={() => setSelectedNotif(null)} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div className="linkedin-card modal-content-notif" onClick={e => e.stopPropagation()} style={{ width: '90%', maxWidth: '500px', backgroundColor: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '16px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '18px' }}>Notification Detail</h3>
+              <button className="close-modal-btn" onClick={() => setSelectedNotif(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#666' }}>
                 <FontAwesomeIcon icon={faTimes} />
               </button>
             </div>
-            <div className="modal-body-notif">
+            <div className="modal-body-notif" style={{ padding: '24px' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '20px' }}>
-                <div className="notif-icon-circle-large">
+                <div className="notif-icon-circle-large" style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#0a66c2' }}>
                     <FontAwesomeIcon icon={faBell} size="lg" />
                 </div>
                 <div>
                     <h2 style={{ fontSize: '20px', margin: 0 }}>
-                      {selectedNotif.type || selectedNotif.heading || 'Notification'}
+                      {selectedNotif.type.replace('_', ' ')}
                     </h2>
-                    <p style={{ color: 'var(--linkedin-secondary-text)', fontSize: '14px' }}>
-                      {new Date(selectedNotif.createdAt || selectedNotif.createdDate).toLocaleString()}
+                    <p style={{ color: 'var(--linkedin-secondary-text)', fontSize: '14px', margin: '4px 0 0' }}>
+                      {new Date(selectedNotif.createdAt).toLocaleString()}
                     </p>
                 </div>
               </div>
-              <p style={{ fontSize: '16px', lineHeight: '1.6' }}>
-                {selectedNotif.message || selectedNotif.notification}
+              <p style={{ fontSize: '16px', lineHeight: '1.6', margin: 0 }}>
+                {selectedNotif.message}
               </p>
               
               <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="btn-primary-round" onClick={() => setSelectedNotif(null)}>Close</button>
+                <button className="btn-primary-round" onClick={() => setSelectedNotif(null)} style={{ padding: '8px 24px', backgroundColor: '#0a66c2', color: 'white', border: 'none', borderRadius: '20px', fontWeight: 600, cursor: 'pointer' }}>Close</button>
               </div>
             </div>
           </div>

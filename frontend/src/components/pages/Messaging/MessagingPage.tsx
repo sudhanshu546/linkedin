@@ -4,8 +4,10 @@ import { useChat } from '../../../context/ChatContext';
 import { useUser } from '../../../context/UserContext';
 import { getChatMessages } from '../../../api/chatApi';
 import { getMyConnections } from '../../../api/profileApi';
+import { getUserById } from '../../../api/userApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faSearch, faUserCircle, faEllipsisH, faCircle } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faSearch, faUserCircle, faEllipsisH, faCircle, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { IMAGE_BASE_URL } from '../../../constants/api';
 
 const MessagingPage: React.FC = () => {
   const { user } = useUser();
@@ -18,18 +20,44 @@ const MessagingPage: React.FC = () => {
   const [connections, setConnections] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
+  const [loadingConnections, setLoadingConnections] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Effect 1: Fetch initial connections list once
+  // Effect 1: Fetch initial connections list once and enrich with user details
   useEffect(() => {
     if (!user) return;
     const fetchInitialConnections = async () => {
+      setLoadingConnections(true);
       try {
         const res = await getMyConnections();
-        const data = Array.isArray(res) ? res : (res?.result || []);
-        setConnections(data);
+        const connectionsList = Array.isArray(res) ? res : (res?.data || []);
+        
+        // Enrich connections with real user details if names are missing
+        const detailedConnections = await Promise.all(connectionsList.map(async (conn: any) => {
+            const otherId = conn.requesterId === user.id ? conn.receiverId : conn.requesterId;
+            try {
+                const userRes = await getUserById(otherId);
+                const otherUser = userRes;
+                return {
+                    ...conn,
+                    otherUserId: otherId,
+                    otherUserName: `${otherUser.firstName || ''} ${otherUser.lastName || ''}`.trim() || 'LinkedIn User',
+                    otherUserAvatar: otherUser.profileImageUrl
+                };
+            } catch (e) {
+                return { 
+                    ...conn, 
+                    otherUserId: otherId, 
+                    otherUserName: conn.requesterId === user.id ? (conn.receiverName || 'LinkedIn User') : (conn.requesterName || 'LinkedIn User')
+                };
+            }
+        }));
+
+        setConnections(detailedConnections);
       } catch (err) {
         console.error('Failed to fetch connections:', err);
+      } finally {
+        setLoadingConnections(false);
       }
     };
     fetchInitialConnections();
@@ -49,43 +77,32 @@ const MessagingPage: React.FC = () => {
       }
     };
 
-    if (targetUserId) {
+    if (targetUserId && !activeChat) {
       const existingConn = connections.find((c: any) => 
-          c.requesterId === targetUserId || c.receiverId === targetUserId
+          c.otherUserId === targetUserId
       );
-      if (existingConn && user) {
-        const otherId = existingConn.requesterId === user.id ? existingConn.receiverId : existingConn.requesterId;
-        const otherName = existingConn.requesterId === user.id ? (existingConn.receiverName || 'User') : (existingConn.requesterName || 'User');
-        openChat(otherId, otherName);
+      if (existingConn) {
+        openChat(existingConn.otherUserId, existingConn.otherUserName);
       } else if (targetUserName) {
         openChat(targetUserId, targetUserName);
       }
-    } else if (!activeChat) {
+    } else if (!activeChat && connections.length > 0) {
       // Default to opening the first connection if none is active
       const firstConn = connections[0];
-      if (firstConn && user) {
-        const otherId = firstConn.requesterId === user.id ? firstConn.receiverId : firstConn.requesterId;
-        const otherName = firstConn.requesterId === user.id ? (firstConn.receiverName || 'User') : (firstConn.requesterName || 'User');
-        openChat(otherId, otherName);
-      }
+      openChat(firstConn.otherUserId, firstConn.otherUserName);
     }
-  }, [connections, targetUserId, targetUserName, user, setChatHistory, activeChat]);
+  }, [connections, targetUserId, targetUserName, setChatHistory, activeChat]);
 
 
   const handleOpenChat = useCallback(async (conn: any) => {
-    if (!user) return;
-    const otherId = conn.requesterId === user.id ? conn.receiverId : conn.requesterId;
-    const otherName = conn.requesterId === user.id ? 
-        (conn.receiverName || 'User') : (conn.requesterName || 'User');
-    
-    setActiveChat({ id: otherId, name: otherName });
+    setActiveChat({ id: conn.otherUserId, name: conn.otherUserName });
     try {
-        const history = await getChatMessages(otherId);
-        setChatHistory(otherId, history);
+        const history = await getChatMessages(conn.otherUserId);
+        setChatHistory(conn.otherUserId, history);
     } catch (err) {
         console.error('Failed to fetch chat history:', err);
     }
-  }, [user, setChatHistory]);
+  }, [setChatHistory]);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -115,10 +132,14 @@ const MessagingPage: React.FC = () => {
     setMessageInput('');
   };
 
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${IMAGE_BASE_URL}${url}`;
+  };
+
   const filteredConnections = connections.filter(c => {
-    if (!user) return false;
-    const name = c.requesterId === user.id ? c.receiverName : c.requesterName;
-    return name?.toLowerCase().includes(searchQuery.toLowerCase());
+    return c.otherUserName?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
@@ -145,15 +166,13 @@ const MessagingPage: React.FC = () => {
           </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {filteredConnections.map(conn => {
-            if (!user) return null;
-            const otherId = conn.requesterId === user.id ? conn.receiverId : conn.requesterId;
-            const otherName = conn.requesterId === user.id ? conn.receiverName : conn.requesterName;
-            const isActive = activeChat?.id === otherId;
-            
-            const chatMessages = messages[otherId] || [];
+          {loadingConnections ? (
+              <div style={{ padding: '20px', textAlign: 'center' }}><div className="spinner-small"></div></div>
+          ) : filteredConnections.map(conn => {
+            const isActive = activeChat?.id === conn.otherUserId;
+            const chatMessages = messages[conn.otherUserId] || [];
             const lastMessage = chatMessages[chatMessages.length - 1];
-            const hasUnread = chatMessages.some((msg: any) => msg.senderId !== user.id && !msg.isRead);
+            const hasUnread = chatMessages.some((msg: any) => msg.senderId !== user?.id && !msg.isRead);
 
             return (
               <div 
@@ -169,10 +188,18 @@ const MessagingPage: React.FC = () => {
                   position: 'relative'
                 }}
               >
-                <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '48px', color: '#adb3b8' }} />
+                {conn.otherUserAvatar ? (
+                    <img 
+                        src={getImageUrl(conn.otherUserAvatar) || ''} 
+                        alt={conn.otherUserName} 
+                        style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} 
+                    />
+                ) : (
+                    <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '48px', color: '#adb3b8' }} />
+                )}
                 <div style={{ flex: 1, overflow: 'hidden' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ fontSize: '14px', color: hasUnread ? '#000' : '#666', fontWeight: hasUnread ? '600' : 'normal' }}>{otherName}</strong>
+                    <strong style={{ fontSize: '14px', color: hasUnread ? '#000' : '#666', fontWeight: hasUnread ? '600' : 'normal' }}>{conn.otherUserName}</strong>
                     <span style={{ fontSize: '12px', color: hasUnread ? '#0a66c2' : '#666', fontWeight: hasUnread ? '600' : 'normal' }}>
                         {lastMessage ? new Date(lastMessage.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}
                     </span>
@@ -188,16 +215,16 @@ const MessagingPage: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center'
                   }}>
-                    <span>{lastMessage ? lastMessage.content : 'No messages yet'}</span>
+                    <span>{lastMessage ? lastMessage.content : 'Click to message'}</span>
                     {hasUnread && <FontAwesomeIcon icon={faCircle} style={{ fontSize: '8px', color: '#0a66c2' }} />}
                   </div>
                 </div>
               </div>
             );
           })}
-          {filteredConnections.length === 0 && searchQuery && (
+          {!loadingConnections && filteredConnections.length === 0 && (
              <div style={{ padding: '20px', textAlign: 'center', color: '#666', fontSize: '14px' }}>
-                No connections found
+                {searchQuery ? 'No connections found' : 'No connections to message yet'}
              </div>
           )}
         </div>
@@ -219,7 +246,13 @@ const MessagingPage: React.FC = () => {
                   flexDirection: user && msg.senderId === user.id ? 'row-reverse' : 'row',
                   alignItems: 'flex-start'
                 }}>
-                  <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8' }} />
+                  {msg.senderId === user?.id ? (
+                      user.profileImageUrl ? (
+                          <img src={getImageUrl(user.profileImageUrl)} alt="Me" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8' }} />
+                  ) : (
+                      <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8' }} />
+                  )}
                   <div style={{ 
                     maxWidth: '70%', 
                     padding: '12px', 
@@ -253,7 +286,7 @@ const MessagingPage: React.FC = () => {
                   className="btn-primary-round"
                   style={{ height: '40px', width: '40px', padding: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <FontAwesomeIcon icon={faPaperPaperPlane} style={{ marginLeft: '4px' }} />
+                  <FontAwesomeIcon icon={faPaperPlane} style={{ marginLeft: '4px' }} />
                 </button>
               </form>
             </div>

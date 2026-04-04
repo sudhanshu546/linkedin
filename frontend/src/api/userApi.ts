@@ -43,7 +43,7 @@ export const getAuthenticatedUser = async (): Promise<UserDetail> => {
   const response = await api.get<ApiResponse<UserDetail>>(
     API_ENDPOINTS.USER.USER_DETAIL
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -81,7 +81,7 @@ export const updateProfileComposite = async (profileData: any): Promise<any> => 
     API_ENDPOINTS.PROFILE.UPDATE, 
     professionalData
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 
@@ -96,7 +96,7 @@ export const getAllUsers = async (
     API_ENDPOINTS.USER.GET_ALL_USERS,
     { params: { page, size } }
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -106,7 +106,7 @@ export const getUserById = async (userId: string): Promise<User> => {
   const response = await api.get<ApiResponse<User>>(
     API_ENDPOINTS.USER.GET_BY_ID(userId)
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -116,18 +116,46 @@ export const getUserByInternalId = async (userId: string): Promise<User> => {
   const response = await api.get<ApiResponse<User>>(
     API_ENDPOINTS.USER.GET_BY_INTERNAL_ID(userId)
   );
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
- * Search users by query
+ * Search users by query using advanced criteria
  */
 export const searchUsers = async (query: string): Promise<User[]> => {
-  const response = await api.get<ApiResponse<User[]>>(
-    API_ENDPOINTS.USER.SEARCH,
-    { params: { query } }
+  const criteria: any = {
+    pageNumber: 0,
+    pageSize: 20,
+    relation: 'OR',
+    filters: [
+      {
+        columnName: 'firstName',
+        operator: 'CONTAINS',
+        values: [query],
+        relation: 'OR'
+      },
+      {
+        columnName: 'lastName',
+        operator: 'CONTAINS',
+        values: [query],
+        relation: 'OR'
+      },
+      {
+        columnName: 'email',
+        operator: 'CONTAINS',
+        values: [query],
+        relation: 'OR'
+      }
+    ]
+  };
+
+  const response = await api.post<ApiResponse<User[]>>(
+    API_ENDPOINTS.USER.ADVANCED_SEARCH,
+    criteria
   );
-  return response.data.result;
+  
+  // Return the result list from the paginated response
+  return response.data.data || [];
 };
 
 /**
@@ -139,5 +167,44 @@ export const refreshToken = async (
   const response = await api.post<ApiResponse<AccessTokenResponse>>(
     `${API_ENDPOINTS.USER.REFRESH_TOKEN}?refreshToken=${refreshToken}`
   );
-  return response.data.result;
+  return response.data.data;
+};
+
+/**
+ * Get privacy settings
+ */
+export const getPrivacySettings = async (): Promise<any> => {
+  const response = await api.get<ApiResponse<any>>(API_ENDPOINTS.USER.PRIVACY);
+  return response.data.data;
+};
+
+/**
+ * Update privacy settings
+ */
+export const updatePrivacySettings = async (settings: any): Promise<void> => {
+  await api.put(API_ENDPOINTS.USER.PRIVACY, settings);
+};
+
+/**
+ * Block a user
+ */
+export const blockUser = async (userId: string): Promise<void> => {
+  await api.post(API_ENDPOINTS.USER.BLOCK(userId));
+};
+
+/**
+ * Unblock a user
+ */
+export const unblockUser = async (userId: string): Promise<void> => {
+  await api.delete(API_ENDPOINTS.USER.UNBLOCK(userId));
+};
+
+/**
+ * Get blocked users
+ */
+export const getBlockedUsers = async (): Promise<User[]> => {
+  const response = await api.get<ApiResponse<User[]>>(
+    '/us/user/blocked'
+  );
+  return response.data.data;
 };

@@ -1,13 +1,13 @@
 import { API_ENDPOINTS } from "../constants/api";
 import api from "./axiosConfig";
-import { ApiResponse, ProfileDTO, Post, PaginatedResponse } from "../types";
+import { ApiResponse, ProfileDTO, Post, PaginatedResponse, AdvanceSearchCriteria, SearchFilter } from "../types";
 
 /**
  * Fetch current user's profile
  */
 export const getMyProfile = async (): Promise<ProfileDTO> => {
   const response = await api.get<ApiResponse<ProfileDTO>>(API_ENDPOINTS.PROFILE.GET_ME);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -15,7 +15,7 @@ export const getMyProfile = async (): Promise<ProfileDTO> => {
  */
 export const updateProfile = async (profileData: ProfileDTO): Promise<ProfileDTO> => {
   const response = await api.put<ApiResponse<ProfileDTO>>(API_ENDPOINTS.PROFILE.UPDATE, profileData);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -23,17 +23,43 @@ export const updateProfile = async (profileData: ProfileDTO): Promise<ProfileDTO
  */
 export const getProfileByUserId = async (userId: string): Promise<ProfileDTO> => {
   const response = await api.get<ApiResponse<ProfileDTO>>(API_ENDPOINTS.PROFILE.GET_BY_ID(userId));
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
- * Search profiles
+ * Search profiles using advanced criteria
  */
-export const searchProfiles = async (query: string): Promise<ProfileDTO[]> => {
-  const response = await api.get<ApiResponse<ProfileDTO[]>>(API_ENDPOINTS.PROFILE.SEARCH, {
-    params: { query }
-  });
-  return response.data.result;
+export const searchProfiles = async (filters: SearchFilter | string): Promise<ProfileDTO[]> => {
+  const criteria: AdvanceSearchCriteria = {
+    pageNumber: 0,
+    pageSize: 20,
+    relation: 'AND',
+    filters: []
+  };
+
+  if (typeof filters === 'string') {
+    criteria.relation = 'OR';
+    criteria.filters.push({ columnName: 'headline', operator: 'CONTAINS', values: [filters], relation: 'OR' });
+    criteria.filters.push({ columnName: 'city', operator: 'CONTAINS', values: [filters], relation: 'OR' });
+    criteria.filters.push({ columnName: 'state', operator: 'CONTAINS', values: [filters], relation: 'OR' });
+    criteria.filters.push({ columnName: 'currentCompany', operator: 'CONTAINS', values: [filters], relation: 'OR' });
+  } else {
+    if (filters.query) {
+        criteria.relation = 'OR';
+        criteria.filters.push({ columnName: 'headline', operator: 'CONTAINS', values: [filters.query], relation: 'OR' });
+        criteria.filters.push({ columnName: 'city', operator: 'CONTAINS', values: [filters.query], relation: 'OR' });
+        criteria.filters.push({ columnName: 'currentCompany', operator: 'CONTAINS', values: [filters.query], relation: 'OR' });
+    }
+    if (filters.location) {
+        criteria.filters.push({ columnName: 'city', operator: 'CONTAINS', values: [filters.location], relation: 'AND' });
+    }
+    if (filters.company) {
+        criteria.filters.push({ columnName: 'currentCompany', operator: 'EQUALS', values: [filters.company], relation: 'AND' });
+    }
+  }
+
+  const response = await api.post<ApiResponse<ProfileDTO[]>>(API_ENDPOINTS.PROFILE.ADVANCED_SEARCH, criteria);
+  return response.data.data;
 };
 
 /**
@@ -41,7 +67,7 @@ export const searchProfiles = async (query: string): Promise<ProfileDTO[]> => {
  */
 export const getConnections = async (): Promise<any[]> => {
   const response = await api.get<ApiResponse<any[]>>(API_ENDPOINTS.NETWORK.GET_CONNECTIONS);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -63,7 +89,7 @@ export const sendConnectionRequest = async (receiverId: string): Promise<void> =
  */
 export const getPendingRequests = async (): Promise<any[]> => {
   const response = await api.get<ApiResponse<any[]>>(API_ENDPOINTS.NETWORK.GET_PENDING_REQUESTS);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -85,7 +111,7 @@ export const cancelConnectionRequest = async (connectionId: string): Promise<voi
  */
 export const getConnectionStatus = async (userId: string): Promise<any> => {
   const response = await api.get<ApiResponse<any>>(`${API_ENDPOINTS.NETWORK.GET_CONNECTIONS}/status/${userId}`);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -101,7 +127,7 @@ export const getRecommendations = async (): Promise<string[]> => {
  */
 export const getProfileViews = async (): Promise<any[]> => {
   const response = await api.get<ApiResponse<any[]>>(API_ENDPOINTS.PROFILE_VIEWS.GET_VIEWS);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -109,7 +135,7 @@ export const getProfileViews = async (): Promise<any[]> => {
  */
 export const getProfileViewCount = async (): Promise<number> => {
   const response = await api.get<ApiResponse<number>>(API_ENDPOINTS.PROFILE_VIEWS.GET_COUNT);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -117,7 +143,15 @@ export const getProfileViewCount = async (): Promise<number> => {
  */
 export const getProfileViewTrends = async (): Promise<any[]> => {
   const response = await api.get<ApiResponse<any[]>>(API_ENDPOINTS.PROFILE_VIEWS.GET_TRENDS);
-  return response.data.result;
+  return response.data.data;
+};
+
+/**
+ * Profile Views - Get demographics
+ */
+export const getProfileDemographics = async (): Promise<any> => {
+  const response = await api.get<ApiResponse<any>>(API_ENDPOINTS.PROFILE_VIEWS.GET_DEMOGRAPHICS);
+  return response.data.data;
 };
 
 /**
@@ -130,7 +164,7 @@ export const getUserPosts = async (userId?: string, page = 0, size = 10): Promis
   const response = await api.get<ApiResponse<PaginatedResponse<Post>>>(url, {
     params: { page, size }
   });
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -138,7 +172,7 @@ export const getUserPosts = async (userId?: string, page = 0, size = 10): Promis
  */
 export const addExperience = async (experience: any): Promise<any> => {
   const response = await api.post<ApiResponse<any>>(`${API_ENDPOINTS.PROFILE.UPDATE}/experience`, experience);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -146,7 +180,7 @@ export const addExperience = async (experience: any): Promise<any> => {
  */
 export const updateExperience = async (id: string, experience: any): Promise<any> => {
   const response = await api.put<ApiResponse<any>>(`${API_ENDPOINTS.PROFILE.UPDATE}/experience/${id}`, experience);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -161,7 +195,7 @@ export const deleteExperience = async (id: string): Promise<void> => {
  */
 export const addEducation = async (education: any): Promise<any> => {
   const response = await api.post<ApiResponse<any>>(`${API_ENDPOINTS.PROFILE.UPDATE}/education`, education);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -169,7 +203,7 @@ export const addEducation = async (education: any): Promise<any> => {
  */
 export const updateEducation = async (id: string, education: any): Promise<any> => {
   const response = await api.put<ApiResponse<any>>(`${API_ENDPOINTS.PROFILE.UPDATE}/education/${id}`, education);
-  return response.data.result;
+  return response.data.data;
 };
 
 /**
@@ -181,7 +215,7 @@ export const updateCoverImage = async (image: File): Promise<string> => {
   const response = await api.post<ApiResponse<string>>(`${API_ENDPOINTS.PROFILE.UPDATE}/cover-image`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
-  return response.data.result;
+  return response.data.data;
 };
 
 /**

@@ -9,11 +9,11 @@ import { ChatMessage, ApiResponse } from '../types';
 /**
  * Get chat messages with a specific user
  */
-export const getChatMessages = async (recipientId: string): Promise<ApiResponse<ChatMessage[]>> => {
+export const getChatMessages = async (recipientId: string): Promise<ChatMessage[]> => {
   const response = await api.get<ApiResponse<ChatMessage[]>>(
     API_ENDPOINTS.CHAT.GET_MESSAGES(recipientId)
   );
-  return response.data;
+  return response.data.data;
 };
 
 /**

@@ -6,14 +6,29 @@
   --linkedin-text: #000000e6;
   --linkedin-secondary-text: #00000099;
   --linkedin-border: #e0e0e0;
+  --linkedin-card-bg: #ffffff;
+  --linkedin-nav-bg: #ffffff;
+  --linkedin-search-bg: #eef3f8;
   --linkedin-card-shadow: 0 4px 12px rgba(0,0,0,0.15);
   --layout-max-width: 1128px;
+}
+
+[data-theme='dark'] {
+  --linkedin-bg: #1d2226;
+  --linkedin-text: #ffffff;
+  --linkedin-secondary-text: #ffffff99;
+  --linkedin-border: #38434f;
+  --linkedin-card-bg: #1d2226;
+  --linkedin-nav-bg: #1d2226;
+  --linkedin-search-bg: #38434f;
+  --linkedin-card-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 body {
   margin: 0;
   background-color: var(--linkedin-bg);
   color: var(--linkedin-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
   font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif;
 }
 
@@ -42,7 +57,7 @@ body {
 .network-grid { grid-template-columns: 300px 1fr; }
 
 .linkedin-card {
-  background-color: #fff;
+  background-color: var(--linkedin-card-bg);
   border-radius: 8px;
   border: 1px solid var(--linkedin-border);
   box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
@@ -53,7 +68,7 @@ body {
 
 /* --- NAVBAR --- */
 .linkedin-navbar {
-  background-color: #fff;
+  background-color: var(--linkedin-nav-bg);
   height: 52px;
   position: sticky;
   top: 0;
@@ -123,7 +138,7 @@ body {
     top: 52px;
     right: 0;
     width: 260px;
-    background: white;
+    background: var(--linkedin-card-bg);
     border-radius: 8px 0 8px 8px;
     box-shadow: var(--linkedin-card-shadow);
     border: 1px solid var(--linkedin-border);
@@ -446,8 +461,12 @@ body {
 .user-status-dot {
     width: 10px;
     height: 10px;
-    background-color: #057642; /* Green for online */
+    background-color: #adb3b8;
     border-radius: 50%;
+}
+
+.user-status-dot.online {
+    background-color: #057642;
 }
 
 .header-right {
@@ -686,6 +705,109 @@ body {
     box-shadow: inset 0 0 0 1px var(--linkedin-blue);
 }
 
+/* --- REACTION SELECTOR --- */
+.reaction-button-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.reaction-selector-popup {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 24px;
+    padding: 4px 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 100;
+    animation: slideUp 0.2s ease;
+    margin-bottom: 8px;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.reaction-icon-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    padding: 8px;
+    cursor: pointer;
+    transition: transform 0.2s;
+    border-radius: 50%;
+}
+
+.reaction-icon-btn:hover {
+    transform: scale(1.3);
+    background-color: #f3f2ef;
+}
+
+/* --- THREADED COMMENTS --- */
+.comment-thread-container {
+    border-left: 1px solid #e0e0e0;
+}
+
+.comment-designation {
+    font-size: 11px;
+    color: var(--linkedin-secondary-text);
+    display: block;
+}
+
+.comment-date {
+    font-size: 11px;
+    color: var(--linkedin-secondary-text);
+}
+
+.btn-icon-small {
+    background: none;
+    border: none;
+    color: var(--linkedin-secondary-text);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 12px;
+}
+
+.btn-icon-small:hover {
+    color: #d11124;
+}
+
+.comment-reply-btn {
+    background: none;
+    border: none;
+    color: var(--linkedin-secondary-text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.comment-reply-btn:hover {
+    text-decoration: underline;
+    color: var(--linkedin-blue);
+}
+
+.reply-indicator {
+    animation: fadeIn 0.3s ease;
+}
+
+.mention-chip {
+    color: var(--linkedin-blue);
+    font-weight: 600;
+    background-color: #eef3f8;
+    padding: 0 4px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.mention-chip:hover {
+    text-decoration: underline;
+    background-color: #dce6f1;
+}
+
 /* --- BUTTONS --- */
 .btn-primary-round { background-color: var(--linkedin-blue); color: white; border-radius: 24px; font-weight: 600; padding: 6px 16px; border: none; cursor: pointer; }
 /* --- RICH POST CREATION --- */
@@ -789,6 +911,7 @@ body {
 /* --- LOADING --- */
 .loading-container { display: flex; justify-content: center; align-items: center; min-height: 200px; width: 100%; }
 .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid var(--linkedin-blue); border-radius: 50%; animation: spin 1s linear infinite; }
+.spinner-small { width: 24px; height: 24px; border: 3px solid #f3f3f3; border-top: 3px solid var(--linkedin-blue); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 /* --- REAL LINKEDIN AUTH STYLES (ISOLATED) --- */

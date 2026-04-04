@@ -54,12 +54,12 @@ api.interceptors.response.use(
             { params: { refreshToken: currentRefreshToken } }
           );
 
-          if (response.data?.result) {
-            const { access_token, refresh_token } = response.data.result;
+          if (response.data?.data) {
+            const { access_token, refresh_token } = response.data.data;
             setTokens({ access_token, refresh_token });
 
             // Update the header for the original request and retry
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            originalRequest.headers.Authorization = `Bearer ${access_token}`;
             return api(originalRequest);
           }
         } catch (refreshError: any) {

@@ -5,6 +5,7 @@ import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { toast } from 'react-toastify';
 import { Notification, NotificationContextType } from '../types';
+import { WS_BASE_URL } from '../constants/api';
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
@@ -17,9 +18,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     if (!user) return;
     try {
       const res = await getAllNotifications();
-      const resData = Array.isArray(res) ? res : ((res as any)?.content || []);
+      const resData = Array.isArray(res) ? res : ((res as any)?.data || (res as any)?.content || []);
       setNotifications(resData);
-      setUnreadCount(resData.filter(n => n.isRead === false).length);
+      setUnreadCount(resData.filter((n: Notification) => n.isRead === false).length);
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     }
@@ -33,7 +34,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     if (!user || !user.id) return;
 
     const token = localStorage.getItem('accessToken');
-    let wsUrl = process.env.REACT_APP_WS_URL || 'http://localhost:9191/ws';
+    let wsUrl = WS_BASE_URL;
     
     if (wsUrl.startsWith('ws:')) {
       wsUrl = 'http' + wsUrl.substring(2);
@@ -80,7 +81,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
   const markAsRead = async (id: string) => {
     try {
       await markNotificationAsRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      setNotifications(prev => prev.map((n: Notification) => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (err) {
       console.error("Failed to mark read:", err);

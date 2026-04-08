@@ -24,3 +24,13 @@ export const markMessagesAsRead = async (senderId: string): Promise<void> => {
     API_ENDPOINTS.CHAT.MARK_READ(senderId)
   );
 };
+
+/**
+ * Fetch all currently online user IDs
+ */
+export const getOnlineUsers = async (): Promise<string[]> => {
+  const response = await api.get<ApiResponse<string[]>>(
+    '/cs/messages/online'
+  );
+  return response.data.data;
+};

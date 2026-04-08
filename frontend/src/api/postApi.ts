@@ -140,16 +140,6 @@ export const deleteComment = async (commentId: string): Promise<any> => {
 };
 
 /**
- * Delete a post
- */
-export const deletePost = async (postId: string): Promise<any> => {
-  const response = await api.delete<ApiResponse<any>>(
-    `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}`
-  );
-  return response.data.data;
-};
-
-/**
  * Edit a post
  */
 export const editPost = async (
@@ -183,6 +173,23 @@ export const createPoll = async (data: {
  */
 export const voteInPoll = async (postId: string, optionId: string): Promise<void> => {
   await api.post(API_ENDPOINTS.FEED.VOTE_POLL(postId, optionId));
+};
+
+/**
+ * Toggle comments on a post
+ */
+export const toggleComments = async (postId: string): Promise<any> => {
+  const response = await api.post<ApiResponse<any>>(
+    `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}/toggle-comments`
+  );
+  return response.data.data;
+};
+
+/**
+ * Delete a post
+ */
+export const deletePost = async (postId: string): Promise<void> => {
+  await api.delete(`${API_ENDPOINTS.FEED.CREATE_POST}/${postId}`);
 };
 
 /**

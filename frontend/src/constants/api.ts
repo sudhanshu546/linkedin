@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
     LOGIN: '/us/login/user',
     SIGNUP: '/us/user/add',
     USER_DETAIL: '/us/user/me',
+    UPDATE: '/us/user/update',
     GET_ALL_USERS: '/us/user/getAllUserDetail',
     GET_BY_ID: (userId: string) => `/us/user/user/${userId}`,
     GET_BY_INTERNAL_ID: (userId: string) => `/us/user/${userId}`,
@@ -25,6 +26,7 @@ export const API_ENDPOINTS = {
     PRIVACY: '/us/user/privacy',
     BLOCK: (userId: string) => `/us/user/block/${userId}`,
     UNBLOCK: (userId: string) => `/us/user/unblock/${userId}`,
+    BLOCKED: '/us/user/blocked',
   },
 
   // Profile Service (ps/*)
@@ -34,6 +36,8 @@ export const API_ENDPOINTS = {
     ADVANCED_SEARCH: '/ps/profiles/advanced-search',
     UPDATE: '/ps/profiles',
     GET_BY_ID: (userId: string) => `/ps/profiles/${userId}`,
+    GET_MY_POSTS: '/ps/profiles/me/posts',
+    GET_POSTS: (userId: string) => `/ps/profiles/${userId}/posts`,
   },
 
   // Feed Service (ps/*)
@@ -55,11 +59,14 @@ export const API_ENDPOINTS = {
   JOBS: {
     GET_ALL: '/js/jobs',
     GET_BY_ID: (jobId: string) => `/js/jobs/${jobId}`,
+    MY_POSTINGS: '/js/jobs/my-postings',
+    MY_APPLICATIONS: '/js/jobs/my-applications',
     CREATE: '/js/jobs',
     UPDATE: (jobId: string) => `/js/jobs/${jobId}`,
     DELETE: (jobId: string) => `/js/jobs/${jobId}`,
     APPLY: (jobId: string) => `/js/jobs/${jobId}/apply`,
     GET_APPLICANTS: (jobId: string) => `/js/jobs/${jobId}/applicants`,
+    UPDATE_STATUS: (jobId: string, applicantId: string) => `/js/jobs/${jobId}/applicants/${applicantId}`,
     SEARCH: '/js/jobs/search',
     ADVANCED_SEARCH: '/js/jobs/advanced-search',
   },
@@ -77,6 +84,8 @@ export const API_ENDPOINTS = {
     GET_CONNECTIONS: '/ps/connections',
     SEND_CONNECTION_REQUEST: '/ps/connections/request',
     RESPOND_CONNECTION: (connectionId: string) => `/ps/connections/${connectionId}/respond`,
+    CANCEL_CONNECTION: (connectionId: string) => `/ps/connections/${connectionId}/cancel`,
+    GET_STATUS: (userId: string) => `/ps/connections/status/${userId}`,
     GET_PENDING_REQUESTS: '/ps/connections/pending',
     GET_SUGGESTIONS: '/ps/connections/recommendations',
   },
@@ -97,9 +106,9 @@ export const API_ENDPOINTS = {
 
   // Search Service (ss/*)
   SEARCH: {
-    USERS: '/ss/api/search/users',
-    JOBS: '/ss/api/search/jobs',
-    TRENDING_HASHTAGS: '/ss/api/search/trending-hashtags',
+    USERS: '/ss/search/users',
+    JOBS: '/ss/search/jobs',
+    TRENDING_HASHTAGS: '/ss/search/trending-hashtags',
   },
 };
 

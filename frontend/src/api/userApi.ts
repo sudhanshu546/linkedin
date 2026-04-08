@@ -67,7 +67,7 @@ export const updateProfileComposite = async (profileData: any): Promise<any> => 
         formData.append('lastName', profileData.lastName || user.lastName);
         formData.append('email', user.email);
         
-        await api.put('/us/user/update', formData, {
+        await api.put(API_ENDPOINTS.USER.UPDATE, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
     }
@@ -204,7 +204,7 @@ export const unblockUser = async (userId: string): Promise<void> => {
  */
 export const getBlockedUsers = async (): Promise<User[]> => {
   const response = await api.get<ApiResponse<User[]>>(
-    '/us/user/blocked'
+    API_ENDPOINTS.USER.BLOCKED
   );
   return response.data.data;
 };

@@ -153,6 +153,7 @@ export interface Post {
   pollOptions?: string[];
   pollExpiryDate?: string;
   poll?: Poll;
+  commentsDisabled?: boolean;
 }
 
 export interface Comment {

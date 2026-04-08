@@ -103,14 +103,14 @@ export const respondToConnectionRequest = async (connectionId: string, accept: b
  * Network - Cancel connection request
  */
 export const cancelConnectionRequest = async (connectionId: string): Promise<void> => {
-  await api.delete(`${API_ENDPOINTS.NETWORK.GET_CONNECTIONS}/${connectionId}/cancel`);
+  await api.delete(API_ENDPOINTS.NETWORK.CANCEL_CONNECTION(connectionId));
 };
 
 /**
  * Network - Get connection status with another user
  */
 export const getConnectionStatus = async (userId: string): Promise<any> => {
-  const response = await api.get<ApiResponse<any>>(`${API_ENDPOINTS.NETWORK.GET_CONNECTIONS}/status/${userId}`);
+  const response = await api.get<ApiResponse<any>>(API_ENDPOINTS.NETWORK.GET_STATUS(userId));
   return response.data.data;
 };
 
@@ -159,8 +159,8 @@ export const getProfileDemographics = async (): Promise<any> => {
  */
 export const getUserPosts = async (userId?: string, page = 0, size = 10): Promise<PaginatedResponse<Post>> => {
   const url = userId 
-    ? `/ps/profiles/${userId}/posts`
-    : `/ps/profiles/me/posts`;
+    ? API_ENDPOINTS.PROFILE.GET_POSTS(userId)
+    : API_ENDPOINTS.PROFILE.GET_MY_POSTS;
   const response = await api.get<ApiResponse<PaginatedResponse<Post>>>(url, {
     params: { page, size }
   });

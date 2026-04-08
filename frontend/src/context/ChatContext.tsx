@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { useUser } from './UserContext';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
-import { markMessagesAsRead } from '../api/chatApi';
+import { markMessagesAsRead, getOnlineUsers } from '../api/chatApi';
 import { ChatMessage } from '../types';
 
 interface ChatContextType {
@@ -54,6 +54,15 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     client.onConnect = (frame) => {
       console.log('Connected to Chat WS');
       setConnected(true);
+      
+      // Fetch initial online users
+      getOnlineUsers().then(users => {
+          if (users) {
+              setOnlineUsers(new Set(users));
+          }
+      }).catch(err => {
+          console.error("Failed to fetch initial online users:", err);
+      });
       
       // Subscribe to messages
       client.subscribe(`/user/${user.id}/queue/messages`, (message) => {

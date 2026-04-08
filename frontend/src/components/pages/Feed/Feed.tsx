@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DOMPurify from 'dompurify';
-import { getFeed, reactToPost, getUserReaction, commentOnPost, deleteComment, getComments, getReactionCount, getUserPosts } from '../../../api/postApi';
+import { getFeed, reactToPost, getUserReaction, commentOnPost, deleteComment, getComments, getReactionCount, getUserPosts, getPollDetails, voteInPoll, deletePost, toggleComments } from '../../../api/postApi';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useUser } from '../../../context/UserContext';
@@ -63,8 +63,43 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
   const [postStats, setPostStats] = useState<Record<string, any>>({}); 
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
   const [showReactionSelector, setShowReactionSelector] = useState<string | null>(null);
+  const selectorTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+
+  const handleMouseEnter = (postId: string) => {
+    if (selectorTimeoutRef.current[postId]) {
+      clearTimeout(selectorTimeoutRef.current[postId]);
+    }
+    setShowReactionSelector(postId);
+  };
+
+  const handleMouseLeave = (postId: string) => {
+    selectorTimeoutRef.current[postId] = setTimeout(() => {
+      setShowReactionSelector(null);
+    }, 300); // 300ms grace period to cross the gap
+  };
+
+  const [showPostMenu, setShowPostMenu] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Record<string, { commentId: string, userName: string } | null>>({});
   const [pollDetails, setPollDetails] = useState<Record<string, any>>({});
+
+  const fetchPollDetails = useCallback(async (postId: string) => {
+    try {
+      const details = await getPollDetails(postId);
+      if (details) {
+        setPollDetails(prev => ({ ...prev, [postId]: details }));
+      }
+    } catch (err) {}
+  }, []);
+
+  const handleVote = async (postId: string, optionId: string) => {
+    try {
+      await voteInPoll(postId, optionId);
+      toast.success('Vote recorded!');
+      fetchPollDetails(postId);
+    } catch (err) {
+      toast.error('Failed to record vote');
+    }
+  };
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastPostElementRef = useCallback((node: HTMLElement | null) => {
@@ -108,8 +143,10 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
       
       if (userId) {
         const res = await getUserPosts(userId, pageNum, 10);
-        const data = Array.isArray(res) ? res : (res as any)?.data || [];
-        filteredData = data.map((post: any) => ({
+        // Handle Spring Page object or direct array
+        const content = (res as any)?.content || (Array.isArray(res) ? res : []);
+        
+        filteredData = content.map((post: any) => ({
           ...post,
           id: post.id || post.postId,
           postId: post.id || post.postId,
@@ -118,9 +155,40 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
           actorDesignation: post.userDesignation || 'LinkedIn Member',
           actorAvatar: post.profileImageUrl,
           timestamp: post.createdDate,
-          type: 'POST_CREATED',
+          content: post.content || post.pollQuestion, // Fallback to pollQuestion
+          isPoll: post.isPoll || post.poll === true, // Support both isPoll and poll fields
+          type: (post.isPoll || post.poll === true) ? 'POLL_CREATED' : 'POST_CREATED',
         }));
-        if (data.length === 0) setHasMore(false);
+        
+        if (content.length === 0 || (res as any)?.last === true) {
+          setHasMore(false);
+        }
+
+        // Fetch enrichment for profile posts
+        const postIds = content.map((p: any) => p.id || p.postId).filter(Boolean);
+        if (postIds.length > 0) {
+          try {
+            const { getPostEnrichment } = await import('../../../api/postApi'); // Dynamic import to avoid circular dep if any
+            // Or just use the existing api instance directly if preferred
+            const enrichmentRes = await api.post('/us/posts/enrichment', postIds);
+            if (enrichmentRes.data?.data) {
+              const enrichment = enrichmentRes.data.data;
+              const stats: Record<string, any> = {};
+              content.forEach((item: any) => {
+                const pid = item.id || item.postId;
+                stats[pid] = {
+                  reactions: enrichment.reactionCounts[pid] || 0,
+                  comments: enrichment.commentCounts[pid] || 0,
+                  userReaction: enrichment.userReactions[pid] || null
+                };
+              });
+              setPostStats(prev => ({ ...prev, ...stats }));
+            }
+          } catch (enrichErr) {
+            console.warn('Profile enrichment failed, falling back to manual fetch');
+            content.forEach((p: any) => fetchPostStats(p.id || p.postId));
+          }
+        }
       } else {
         const res = await getFeed(pageNum, 10);
         const data = res?.data || [];
@@ -147,12 +215,28 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
         }
       }
       
+      // Populate post stats from enriched data
+      const stats: Record<string, any> = {};
       filteredData.forEach(item => {
         const postId = item.postId || item.id;
         if (postId) {
-          fetchPostStats(postId);
+          stats[postId] = {
+            reactions: item.reactionCount || 0,
+            comments: item.commentCount || 0,
+            userReaction: item.userReaction || null
+          };
         }
       });
+      setPostStats(prev => ({ ...prev, ...stats }));
+
+      // Fetch poll details for any polls in the feed
+      filteredData.forEach(item => {
+        const postId = item.postId || item.id;
+        if (item.type === 'POLL_CREATED' || (item.metadata && item.metadata.isPoll === 'true') || item.isPoll) {
+          fetchPollDetails(postId);
+        }
+      });
+
     } catch (err) {
       console.error('Error fetching feed:', err);
     } finally {
@@ -227,9 +311,39 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
     } catch (err) {}
   };
 
+  const onDeletePost = async (postId: string) => {
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+    try {
+      await deletePost(postId);
+      setPosts(prev => prev.filter(p => (p.postId || p.id) !== postId));
+      toast.success('Post deleted successfully');
+    } catch (err) {
+      toast.error('Failed to delete post');
+    }
+  };
+
+  const onToggleComments = async (postId: string) => {
+    try {
+      const updatedPost = await toggleComments(postId);
+      if (!updatedPost) return;
+      
+      setPosts(prev => prev.map(p => {
+        if ((p.postId || p.id) === postId) {
+          return { ...p, commentsDisabled: updatedPost.commentsDisabled };
+        }
+        return p;
+      }));
+      toast.success(updatedPost.commentsDisabled ? 'Comments disabled' : 'Comments enabled');
+    } catch (err) {
+      toast.error('Failed to toggle comments');
+    }
+  };
+
   const renderCommentsList = (postId: string, feedItemId: string, parentId: string | null = null, depth = 0) => {
     const comments = (postComments[postId] || []).filter(c => c?.parentId === parentId);
     if (comments.length === 0) return null;
+
+    const post = posts.find(p => (p.postId || p.id) === postId);
 
     return comments.map((comment: any) => (
       <div key={comment.id} className="comment-thread-container" style={{ marginLeft: depth > 0 ? '40px' : '0', marginTop: '8px' }}>
@@ -243,7 +357,7 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '11px', color: 'var(--linkedin-secondary-text)' }}>{new Date(comment.createdDate || Date.now()).toLocaleDateString()}</span>
-                {user && user.id === comment.userId && (
+                {user && (user.id === comment.userId || user.id === post?.actorId || user.id === post?.userId) && (
                     <button onClick={() => handleDeleteComment(postId, comment.id)} className="btn-icon-small"><FontAwesomeIcon icon={faTrash} /></button>
                 )}
               </div>
@@ -331,8 +445,33 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
                     {new Date(item.timestamp || item.createdDate || Date.now()).toLocaleString()}
                 </span>
               </div>
-              <div style={{ marginLeft: 'auto', color: 'var(--linkedin-secondary-text)', cursor: 'pointer' }}>
-                <FontAwesomeIcon icon={faEllipsisH} />
+              <div style={{ marginLeft: 'auto', color: 'var(--linkedin-secondary-text)', cursor: 'pointer', position: 'relative' }}>
+                <FontAwesomeIcon 
+                  icon={faEllipsisH} 
+                  onClick={() => setShowPostMenu(showPostMenu === item.id ? null : item.id)}
+                />
+                {showPostMenu === item.id && (
+                  <div className="post-options-dropdown" style={{ position: 'absolute', right: 0, top: '24px', background: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '8px', zIndex: 100, width: '180px', padding: '8px 0' }}>
+                    {user && (user.id === item.actorId || user.id === item.userId) && (
+                      <>
+                        <button 
+                          onClick={() => { onToggleComments(postId); setShowPostMenu(null); }}
+                          style={{ width: '100%', padding: '10px 16px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', color: '#666' }}
+                        >
+                          {item.commentsDisabled ? 'Enable comments' : 'Disable comments'}
+                        </button>
+                        <button 
+                          onClick={() => { onDeletePost(postId); setShowPostMenu(null); }}
+                          style={{ width: '100%', padding: '10px 16px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', color: '#d11124' }}
+                        >
+                          Delete post
+                        </button>
+                      </>
+                    )}
+                    <button style={{ width: '100%', padding: '10px 16px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', color: '#666' }}>Save</button>
+                    <button style={{ width: '100%', padding: '10px 16px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', color: '#666' }}>Copy link</button>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -346,7 +485,7 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
               )}
 
               {/* Poll Rendering */}
-              {(item.type === 'POLL_CREATED' || (item.metadata && item.metadata.isPoll === 'true')) && pollDetails[postId] && (
+              {(item.type === 'POLL_CREATED' || (item.metadata && item.metadata.isPoll === 'true') || item.isPoll) && pollDetails[postId] && (
                 <div className="poll-container" style={{ marginTop: '12px', padding: '12px', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#f9fafb' }}>
                   <h4 style={{ marginBottom: '12px', fontSize: '15px' }}>{pollDetails[postId].question}</h4>
                   <div className="poll-options">
@@ -359,7 +498,7 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
                       return (
                         <div key={option.id} style={{ marginBottom: '8px' }}>
                           <button 
-                            onClick={() => !isVoted}
+                            onClick={() => handleVote(postId, option.id)}
                             disabled={isVoted}
                             className={`poll-option-btn ${isSelected ? 'selected' : ''}`}
                             style={{
@@ -438,11 +577,11 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
             <div className="interaction-bar" style={{ position: 'relative' }}>
                 <div 
                   className="reaction-button-wrapper"
-                  onMouseEnter={() => setShowReactionSelector(item.id)}
-                  onMouseLeave={() => setShowReactionSelector(null)}
+                  onMouseEnter={() => handleMouseEnter(item.id)}
+                  onMouseLeave={() => handleMouseLeave(item.id)}
                 >
                     {showReactionSelector === item.id && (
-                        <div className="reaction-selector-popup">
+                        <div className="reaction-selector-popup" onMouseEnter={() => handleMouseEnter(item.id)}>
                             {REACTION_TYPES.map(r => (
                                 <button 
                                     key={r.type} 
@@ -481,29 +620,35 @@ const Feed: React.FC<FeedProps> = ({ userId = null, limit = null, onPostsLoaded 
 
             {activeFeedItemId === item.id && (
               <div className="feed-comment-section">
-                <div className="comment-input-row">
-                  <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8', marginTop: '4px' }} />
-                  <div className="integrated-comment-box">
-                    <div style={{ width: '100%' }}>
-                        {replyTo[item.id] && (
-                            <div className="reply-indicator" style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#f3f2ef', borderRadius: '4px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Replying to <strong>{replyTo[item.id]?.userName}</strong></span>
-                                <button onClick={() => setReplyTo(prev => ({ ...prev, [item.id]: null }))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '10px' }}>✕</button>
-                            </div>
-                        )}
-                        <input 
-                            type="text" 
-                            placeholder="Add a comment..." 
-                            value={commentInputs[item.id] || ''}
-                            onChange={(e) => handleInputChange(item.id, e.target.value)}
-                            className="integrated-input"
-                        />
+                {!item.commentsDisabled ? (
+                  <div className="comment-input-row">
+                    <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '32px', color: '#adb3b8', marginTop: '4px' }} />
+                    <div className="integrated-comment-box">
+                      <div style={{ width: '100%' }}>
+                          {replyTo[item.id] && (
+                              <div className="reply-indicator" style={{ fontSize: '12px', padding: '4px 8px', backgroundColor: '#f3f2ef', borderRadius: '4px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>Replying to <strong>{replyTo[item.id]?.userName}</strong></span>
+                                  <button onClick={() => setReplyTo(prev => ({ ...prev, [item.id]: null }))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '10px' }}>✕</button>
+                              </div>
+                          )}
+                          <input 
+                              type="text" 
+                              placeholder="Add a comment..." 
+                              value={commentInputs[item.id] || ''}
+                              onChange={(e) => handleInputChange(item.id, e.target.value)}
+                              className="integrated-input"
+                          />
+                      </div>
+                      {(commentInputs[item.id]?.trim()) && (
+                        <button onClick={() => handleCommentSubmit(item.id, postId, replyTo[item.id]?.commentId)} className="integrated-post-btn">Post</button>
+                      )}
                     </div>
-                    {(commentInputs[item.id]?.trim()) && (
-                      <button onClick={() => handleCommentSubmit(item.id, postId, replyTo[item.id]?.commentId)} className="integrated-post-btn">Post</button>
-                    )}
                   </div>
-                </div>
+                ) : (
+                  <div style={{ padding: '12px', textAlign: 'center', color: 'var(--linkedin-secondary-text)', fontSize: '14px', fontStyle: 'italic' }}>
+                    Comments are disabled for this post.
+                  </div>
+                )}
                 <div className="comments-display-list">
                   {renderCommentsList(postId, item.id)}
                 </div>

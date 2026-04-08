@@ -33,7 +33,7 @@ export const getAllJobs = async (
  */
 export const getMyPostings = async (): Promise<Job[]> => {
   const response = await api.get<ApiResponse<Job[]>>(
-    '/js/jobs/my-postings'
+    API_ENDPOINTS.JOBS.MY_POSTINGS
   );
   return response.data.data;
 };
@@ -103,7 +103,7 @@ export const applyForJob = async (
  */
 export const getMyApplications = async (): Promise<JobApplication[]> => {
   const response = await api.get<ApiResponse<JobApplication[]>>(
-    '/js/jobs/my-applications'
+    API_ENDPOINTS.JOBS.MY_APPLICATIONS
   );
   return response.data.data;
 };
@@ -220,7 +220,7 @@ export const updateApplicationStatus = async (
   status: string
 ): Promise<JobApplication> => {
   const response = await api.patch<ApiResponse<JobApplication>>(
-    `${API_ENDPOINTS.JOBS.GET_APPLICANTS(jobId)}/${applicantId}`,
+    API_ENDPOINTS.JOBS.UPDATE_STATUS(jobId, applicantId),
     { status }
   );
   return response.data.data;

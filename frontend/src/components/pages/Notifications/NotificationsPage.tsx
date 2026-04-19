@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { useNotifications } from '../../../context/NotificationContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBell, faTimes } from '@fortawesome/free-solid-svg-icons';
+import { faBell, faTimes, faCheckDouble } from '@fortawesome/free-solid-svg-icons';
 import '../../../App.css';
 import { Notification } from '../../../types';
 
 const NotificationsPage: React.FC = () => {
-  const { notifications, markAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
 
   const handleNotifClick = async (notif: Notification) => {
     setSelectedNotif(notif);
-    if (!notif.read) {
+    if (!notif.isRead) {
       markAsRead(notif.id);
+    }
+  };
+
+  const handleMarkAllAsRead = () => {
+    if (unreadCount > 0) {
+      markAllAsRead();
     }
   };
 
@@ -31,8 +37,14 @@ const NotificationsPage: React.FC = () => {
       {/* Column 2: Middle (Notifications List) */}
       <main className="feed-column">
         <div className="linkedin-card">
-          <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #eee' }}>
+          <div className="card-header" style={{ padding: '12px 16px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '18px' }}>Notifications</h3>
+            {unreadCount > 0 && (
+              <button onClick={handleMarkAllAsRead} style={{ background: 'none', border: 'none', color: '#0a66c2', fontWeight: 600, cursor: 'pointer', fontSize: '14px' }}>
+                <FontAwesomeIcon icon={faCheckDouble} style={{ marginRight: '4px' }} />
+                Mark all as read
+              </button>
+            )}
           </div>
           {notifications.length === 0 ? (
             <div className="card-body" style={{ textAlign: 'center', padding: '48px' }}>
@@ -44,9 +56,9 @@ const NotificationsPage: React.FC = () => {
               {notifications.map((notif) => (
                 <div 
                   key={notif.id} 
-                  className={`notification-item ${!notif.read ? 'unread' : ''}`}
+                  className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
                   onClick={() => handleNotifClick(notif)}
-                  style={{ cursor: 'pointer', padding: '16px', borderBottom: '1px solid #eee', display: 'flex', gap: '12px' }}
+                  style={{ cursor: 'pointer', padding: '16px', borderBottom: '1px solid #eee', display: 'flex', gap: '12px', backgroundColor: !notif.isRead ? '#f3f6f8' : 'white' }}
                 >
                   <div className="notif-icon-circle" style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#666' }}>
                       <FontAwesomeIcon icon={faBell} />

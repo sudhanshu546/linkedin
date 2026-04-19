@@ -5,6 +5,8 @@
 
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { UserProvider } from './context/UserContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ChatProvider } from './context/ChatContext';
@@ -14,6 +16,17 @@ import Layout from './components/common/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 import './Forms.css';
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    },
+  },
+});
 
 // Lazy load pages from central index
 const LoginPage = lazy(() => import('./components/pages/Login/LoginPage'));
@@ -53,6 +66,7 @@ function App() {
 
   return (
     <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <UserProvider>
         <NotificationProvider>
@@ -203,6 +217,8 @@ function App() {
         </NotificationProvider>
       </UserProvider>
       </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

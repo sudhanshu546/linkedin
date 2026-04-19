@@ -56,7 +56,16 @@ export const createPost = async (data: PostCreateRequest): Promise<Post> => {
  */
 export const reactToPost = async (postId: string, type: string): Promise<void> => {
   await api.post(
-    `${API_ENDPOINTS.FEED.REACT_POST(postId)}?type=${type}`
+    `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}/react?type=${type}`
+  );
+};
+
+/**
+ * Remove reaction from a post
+ */
+export const unlikePost = async (postId: string): Promise<void> => {
+  await api.delete(
+    `${API_ENDPOINTS.FEED.CREATE_POST}/${postId}/react`
   );
 };
 
@@ -94,12 +103,7 @@ export const commentOnPost = async (
     
   const response = await api.post<ApiResponse<Comment>>(
     url,
-    content,
-    {
-      headers: {
-        'Content-Type': 'text/plain',
-      },
-    }
+    { content }
   );
   return response.data.data;
 };
@@ -121,8 +125,8 @@ export const getUserPosts = async (
   userId: string,
   page = PAGINATION.DEFAULT_PAGE,
   size = PAGINATION.FEED_SIZE
-): Promise<Post[]> => {
-  const response = await api.get<ApiResponse<Post[]>>(
+): Promise<any> => {
+  const response = await api.get<ApiResponse<any>>(
     `${API_ENDPOINTS.FEED.CREATE_POST}/user/${userId}`,
     { params: { page, size } }
   );

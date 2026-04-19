@@ -141,6 +141,9 @@ export interface Post {
   id: string;
   userId: string;
   user?: User;
+  userName?: string;
+  userDesignation?: string;
+  userProfileImageUrl?: string;
   content: string;
   imageUrls?: string[];
   likeCount: number;
@@ -161,6 +164,9 @@ export interface Comment {
   postId: string;
   userId: string;
   user?: User;
+  userName?: string;
+  userDesignation?: string;
+  userProfileImageUrl?: string;
   content: string;
   createdDate: number;
   lastModifiedDate?: number;
@@ -203,13 +209,16 @@ export interface Job {
 export interface JobApplication {
   id: string;
   jobId: string;
-  userId: string;
+  applicantId: string;
+  userId?: string;
   user?: User;
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  status: 'PENDING' | 'APPLIED' | 'REVIEWING' | 'INTERVIEW' | 'ACCEPTED' | 'REJECTED';
   appliedDate: string;
   updatedDate?: string;
   resumeUrl?: string;
   coverLetter?: string;
+  interviewDate?: string;
+  interviewLink?: string;
 }
 
 export interface JobCreateRequest {
@@ -274,7 +283,7 @@ export interface Notification {
   message: string;
   relatedUserId?: string;
   relatedPostId?: string;
-  read: boolean;
+  isRead: boolean;
   createdAt: string;
 }
 
@@ -302,6 +311,7 @@ export interface NotificationContextType {
   unreadCount: number;
   fetchNotifications: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
 }
 
 // State Types

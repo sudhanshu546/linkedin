@@ -3,7 +3,8 @@ import {
   respondToConnectionRequest, 
   sendConnectionRequest,
   getPendingRequests,
-  getConnections
+  getConnections,
+  getRecommendations
 } from '../../../api/profileApi';
 import { 
   getUserById, 
@@ -28,7 +29,24 @@ interface PendingRequest {
   requesterId: string;
   receiverId: string;
   status: string;
-  sender?: User;
+  // Enriched fields from backend
+  requesterName?: string;
+  requesterAvatar?: string;
+  requesterDesignation?: string;
+}
+
+interface UserConnection {
+  id: string;
+  requesterId: string;
+  receiverId: string;
+  status: string;
+  // Enriched fields from backend
+  requesterName?: string;
+  requesterAvatar?: string;
+  requesterDesignation?: string;
+  receiverName?: string;
+  receiverAvatar?: string;
+  receiverDesignation?: string;
 }
 
 const MyNetworkPage: React.FC = () => {
@@ -36,7 +54,7 @@ const MyNetworkPage: React.FC = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [suggestions, setSuggestions] = useState<User[]>([]);
-  const [connections, setConnections] = useState<User[]>([]);
+  const [connections, setConnections] = useState<UserConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'invitations' | 'connections'>('invitations'); 
 
@@ -44,64 +62,15 @@ const MyNetworkPage: React.FC = () => {
     if (!currentUser) return;
     setLoading(true);
     try {
-      const [pendingRes, allUsersRes, connectionsRes] = await Promise.all([
+      const [pendingRes, connectionsRes, suggestionsRes] = await Promise.all([
         getPendingRequests(),
-        getAllUsers(0, 100), 
-        getConnections()
+        getConnections(),
+        getRecommendations()
       ]);
 
-      const pendingData = Array.isArray(pendingRes) ? pendingRes : (pendingRes as any)?.data || [];
-      const connectionsData = Array.isArray(connectionsRes) ? connectionsRes : (connectionsRes as any)?.data || [];
-
-      // Fetch senders for pending requests
-      const requestsWithUsers = await Promise.all(
-        pendingData.map(async (req: any) => {
-          try {
-            const userData = await getUserById(req.requesterId); 
-            return { ...req, sender: userData };
-          } catch (err) {
-            return { ...req, sender: { id: req.requesterId, firstName: 'LinkedIn', lastName: 'User', email: '' } as User };
-          }
-        })
-      );
-      setRequests(requestsWithUsers);
-
-      // Fetch detailed connection info
-      const connectedUsers = await Promise.all(
-        connectionsData.map(async (conn: any) => {
-            const otherId = conn.requesterId === currentUser.id ? conn.receiverId : conn.requesterId;
-            try {
-                const userData = await getUserById(otherId);
-                return userData;
-            } catch (err) {
-                return { id: otherId, firstName: 'LinkedIn', lastName: 'User', email: '' } as User;
-            }
-        })
-      );
-      setConnections(connectedUsers.filter(u => u !== null));
-
-      // Filtering logic for suggestions
-      const connectedAndPendingIds = new Set<string>();
-      connectedAndPendingIds.add(currentUser.id);
-
-      connectionsData.forEach((c: any) => {
-          connectedAndPendingIds.add(c.requesterId);
-          connectedAndPendingIds.add(c.receiverId);
-      });
-
-      pendingData.forEach((r: any) => {
-          connectedAndPendingIds.add(r.requesterId);
-          connectedAndPendingIds.add(r.receiverId);
-      });
-      
-      const allUsersData = Array.isArray(allUsersRes) ? allUsersRes : (allUsersRes as any)?.data || [];
-      const suggestionList = Array.isArray(allUsersData) ? allUsersData : (allUsersData as any).data || [];
-
-      const finalSuggestions = suggestionList.filter((u: User) => 
-        u && u.id && !connectedAndPendingIds.has(u.id)
-      ).slice(0, 12);
-
-      setSuggestions(finalSuggestions);
+      setRequests(pendingRes || []);
+      setConnections(connectionsRes || []);
+      setSuggestions(suggestionsRes || []);
     } catch (err) {
       console.error('Error fetching network data:', err);
       toast.error('Failed to load network data.');
@@ -137,14 +106,17 @@ const MyNetworkPage: React.FC = () => {
       }
   };
 
-  const handleMessageClick = (conn: User) => {
-    navigate(`/messaging?userId=${conn.id}&userName=${encodeURIComponent(conn.firstName + ' ' + conn.lastName)}`);
+  const handleMessageClick = (conn: UserConnection) => {
+    const isRequester = conn.requesterId === currentUser?.id;
+    const otherId = isRequester ? conn.receiverId : conn.requesterId;
+    const otherName = isRequester ? conn.receiverName : conn.requesterName;
+    navigate(`/messaging?userId=${otherId}&userName=${encodeURIComponent(otherName || '')}`);
   };
 
-  const renderAvatar = (user?: User, size: "3x" | "4x" = "3x") => {
-      if (user?.profileImageUrl) {
+  const renderAvatar = (imageUrl?: string, size: "3x" | "4x" = "3x") => {
+      if (imageUrl) {
           return <img 
-            src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} 
+            src={imageUrl.startsWith('http') ? imageUrl : `${IMAGE_BASE_URL}${imageUrl}`} 
             alt="" 
             style={{ 
                 width: size === "3x" ? "48px" : "80px", 
@@ -224,12 +196,12 @@ const MyNetworkPage: React.FC = () => {
                     {requests.map((req) => (
                         <div key={req.id} className="invitation-item" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div className="sender-info" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                {renderAvatar(req.sender, "3x")}
+                                {renderAvatar(req.requesterAvatar, "3x")}
                                 <div className="sender-details">
-                                <Link to={`/profile/${req.sender?.id || ''}`} style={{ textDecoration: 'none' }}>
-                                    <h4 style={{ margin: 0, fontSize: '14px', color: 'rgba(0,0,0,0.9)', fontWeight: '600' }}>{req.sender?.firstName} {req.sender?.lastName}</h4>
+                                <Link to={`/profile/${req.requesterId}`} style={{ textDecoration: 'none' }}>
+                                    <h4 style={{ margin: 0, fontSize: '14px', color: 'rgba(0,0,0,0.9)', fontWeight: '600' }}>{req.requesterName}</h4>
                                 </Link>
-                                <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>{req.sender?.email}</p>
+                                <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>{req.requesterDesignation || 'LinkedIn Member'}</p>
                                 </div>
                             </div>
                             <div className="request-actions" style={{ display: 'flex', gap: '8px' }}>
@@ -254,28 +226,36 @@ const MyNetworkPage: React.FC = () => {
                     </div>
                 ) : (
                     <div className="connections-list">
-                        {connections.map((conn) => (
-                            <div key={conn.id} className="invitation-item" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div className="sender-info" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                    {renderAvatar(conn, "3x")}
-                                    <div className="sender-details">
-                                        <Link to={`/profile/${conn.id}`} style={{ textDecoration: 'none' }}>
-                                            <h4 style={{ margin: 0, fontSize: '14px', color: 'rgba(0,0,0,0.9)', fontWeight: '600' }}>{conn.firstName} {conn.lastName}</h4>
-                                        </Link>
-                                        <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>{conn.email}</p>
+                        {connections.map((conn) => {
+                            const isRequester = conn.requesterId === currentUser?.id;
+                            const otherId = isRequester ? conn.receiverId : conn.requesterId;
+                            const otherName = isRequester ? conn.receiverName : conn.requesterName;
+                            const otherAvatar = isRequester ? conn.receiverAvatar : conn.requesterAvatar;
+                            const otherDesignation = isRequester ? conn.receiverDesignation : conn.requesterDesignation;
+
+                            return (
+                                <div key={conn.id} className="invitation-item" style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div className="sender-info" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                        {renderAvatar(otherAvatar, "3x")}
+                                        <div className="sender-details">
+                                            <Link to={`/profile/${otherId}`} style={{ textDecoration: 'none' }}>
+                                                <h4 style={{ margin: 0, fontSize: '14px', color: 'rgba(0,0,0,0.9)', fontWeight: '600' }}>{otherName}</h4>
+                                            </Link>
+                                            <p style={{ margin: 0, fontSize: '12px', color: '#666' }}>{otherDesignation || 'LinkedIn Member'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="request-actions">
+                                        <button 
+                                            onClick={() => handleMessageClick(conn)} 
+                                            className="btn-secondary-round" 
+                                            style={{ padding: '4px 16px', fontSize: '14px', color: '#0a66c2', fontWeight: '600' }}
+                                        >
+                                            Message
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="request-actions">
-                                    <button 
-                                        onClick={() => handleMessageClick(conn)} 
-                                        className="btn-secondary-round" 
-                                        style={{ padding: '4px 16px', fontSize: '14px', color: '#0a66c2', fontWeight: '600' }}
-                                    >
-                                        Message
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -288,11 +268,11 @@ const MyNetworkPage: React.FC = () => {
             <div className="suggestions-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', padding: '12px', display: 'grid' }}>
                 {suggestions.map(userSuggestion => (
                     <div key={userSuggestion.id} className="suggestion-card" style={{ border: '1px solid #e0e0e0', borderRadius: '8px', padding: '12px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
-                        {renderAvatar(userSuggestion, "4x")}
+                        {renderAvatar(userSuggestion.profileImageUrl, "4x")}
                         <Link to={`/profile/${userSuggestion.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                             <h4 style={{ margin: '4px 0', fontSize: '14px', fontWeight: '600' }}>{userSuggestion.firstName} {userSuggestion.lastName}</h4>
                         </Link>
-                        <p style={{ fontSize: '12px', color: '#666', height: '32px', overflow: 'hidden', marginBottom: '12px' }}>{userSuggestion.email}</p>
+                        <p style={{ fontSize: '12px', color: '#666', height: '32px', overflow: 'hidden', marginBottom: '12px' }}>{userSuggestion.designation || 'LinkedIn Member'}</p>
                         <button 
                             onClick={() => handleConnect(userSuggestion.id)}
                             className="btn-secondary-pill" 

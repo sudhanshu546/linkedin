@@ -51,7 +51,9 @@ const EditProfilePage: React.FC = () => {
         if (profileData) {
             setProfile({
                 ...profileData,
-                experienceYears: profileData.experienceYears || 0
+                experienceYears: profileData.experienceYears || 0,
+                currentCompany: profileData.currentCompany || '',
+                designation: profileData.designation || ''
             });
         }
         if (privacyData) {

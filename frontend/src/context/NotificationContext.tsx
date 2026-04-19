@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useUser } from './UserContext';
-import { getAllNotifications, markNotificationAsRead } from '../api/notificationApi';
+import { getAllNotifications, markNotificationAsRead, markAllAsRead as apiMarkAllAsRead } from '../api/notificationApi';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { toast } from 'react-toastify';
@@ -11,24 +12,18 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useUser();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const queryClient = useQueryClient();
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    try {
+  const { data: notifications = [], refetch: fetchNotifications } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => {
       const res = await getAllNotifications();
-      const resData = Array.isArray(res) ? res : ((res as any)?.data || (res as any)?.content || []);
-      setNotifications(resData);
-      setUnreadCount(resData.filter((n: Notification) => n.isRead === false).length);
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
-    }
-  }, [user]);
+      return Array.isArray(res) ? res : ((res as any)?.data || (res as any)?.content || []);
+    },
+    enabled: !!user,
+  });
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+  const unreadCount = notifications.filter((n: Notification) => n.isRead === false).length;
 
   useEffect(() => {
     if (!user || !user.id) return;
@@ -63,8 +58,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     stompClient.onConnect = (frame) => {
       stompClient.subscribe(`/user/${user.id}/queue/notifications`, (message) => {
         const notification: Notification = JSON.parse(message.body);
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
+        
+        // Update Query Cache
+        queryClient.setQueryData(['notifications'], (old: Notification[] = []) => [notification, ...old]);
+        
         toast.info(notification.message || 'New notification', {
             onClick: () => window.location.href = '/notifications'
         });
@@ -76,20 +73,42 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     return () => {
       stompClient.deactivate();
     };
-  }, [user]);
+  }, [user, queryClient]);
+
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => markNotificationAsRead(id),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(['notifications'], (old: Notification[] = []) => 
+        old.map(n => n.id === id ? { ...n, isRead: true } : n)
+      );
+    }
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () => apiMarkAllAsRead(),
+    onSuccess: () => {
+      queryClient.setQueryData(['notifications'], (old: Notification[] = []) => 
+        old.map(n => ({ ...n, isRead: true }))
+      );
+    }
+  });
 
   const markAsRead = async (id: string) => {
-    try {
-      await markNotificationAsRead(id);
-      setNotifications(prev => prev.map((n: Notification) => n.id === id ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error("Failed to mark read:", err);
-    }
+    markReadMutation.mutate(id);
+  };
+
+  const markAllAsReadContext = async () => {
+    markAllReadMutation.mutate();
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, fetchNotifications }}>
+    <NotificationContext.Provider value={{ 
+      notifications, 
+      unreadCount, 
+      markAsRead, 
+      fetchNotifications: async () => { await fetchNotifications(); }, 
+      markAllAsRead: markAllAsReadContext 
+    }}>
       {children}
     </NotificationContext.Provider>
   );

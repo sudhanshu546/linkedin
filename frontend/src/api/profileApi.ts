@@ -115,11 +115,19 @@ export const getConnectionStatus = async (userId: string): Promise<any> => {
 };
 
 /**
- * Network - Get suggestions/recommendations
+ * Network - Get suggestions/recommendations (People you may know)
  */
-export const getRecommendations = async (): Promise<string[]> => {
-  const response = await api.get<string[]>(API_ENDPOINTS.NETWORK.GET_SUGGESTIONS);
-  return response.data; // This might not be wrapped yet or is a string array
+export const getRecommendations = async (): Promise<User[]> => {
+  const response = await api.get<ApiResponse<User[]>>(API_ENDPOINTS.NETWORK.GET_SUGGESTIONS);
+  return response.data.data;
+};
+
+/**
+ * Network - Get mutual connections between current user and another
+ */
+export const getMutualConnections = async (userId: string): Promise<string[]> => {
+  const response = await api.get<ApiResponse<string[]>>(`${API_ENDPOINTS.NETWORK.GET_CONNECTIONS}/mutual/${userId}`);
+  return response.data.data;
 };
 
 /**
@@ -141,8 +149,10 @@ export const getProfileViewCount = async (): Promise<number> => {
 /**
  * Profile Views - Get trends
  */
-export const getProfileViewTrends = async (): Promise<any[]> => {
-  const response = await api.get<ApiResponse<any[]>>(API_ENDPOINTS.PROFILE_VIEWS.GET_TRENDS);
+export const getProfileViewTrends = async (days = 7): Promise<any[]> => {
+  const response = await api.get<ApiResponse<any[]>>(
+    `${API_ENDPOINTS.PROFILE_VIEWS.GET_TRENDS}?days=${days}`
+  );
   return response.data.data;
 };
 

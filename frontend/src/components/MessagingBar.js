@@ -1,320 +1,218 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../context/ChatContext';
 import { useUser } from '../context/UserContext';
-import { getChatMessages } from '../api/chatApi';
-import { getMyConnections } from '../api/profileApi';
-import { getUserById } from '../api/userApi';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronUp, faChevronDown, faEdit, faSearch, faTimes, faPaperPlane, faUserCircle } from '@fortawesome/free-solid-svg-icons';
-import { IMAGE_BASE_URL } from '../constants/api';
+import { 
+  faChevronUp, 
+  faChevronDown, 
+  faEdit, 
+  faEllipsisH, 
+  faSearch, 
+  faUserCircle,
+  faPaperPlane,
+  faChevronLeft
+} from '@fortawesome/free-solid-svg-icons';
+import { getMyConnections } from '../api/profileApi';
+import { getChatMessages } from '../api/chatApi';
+import { getUserById } from '../api/userApi';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MessagingBar = () => {
-  const { user } = useUser();
-  const { 
-      messages, 
-      sendMessage, 
-      setChatHistory, 
-      connected, 
-      onlineUsers, 
-      typingStatus, 
-      sendTyping, 
-      sendReadReceipt,
-      markAsRead
-  } = useChat();
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeChat, setActiveChat] = useState(null); 
+  const [isExpanded, setIsModalExpanded] = useState(false);
+  const [activeChat, setActiveChat] = useState(null);
   const [connections, setConnections] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageInput, setMessageInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const { user } = useUser();
+  const { messages, sendMessage, setChatHistory, connected } = useChat();
   const messagesEndRef = useRef(null);
-  const containerRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
 
-  // Draggable state
-  const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 }); 
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [hasMoved, setHasMoved] = useState(false);
-  const dragThreshold = 5;
+  useEffect(() => {
+    if (isExpanded && connections.length === 0 && user) {
+        fetchConnections();
+    }
+  }, [isExpanded, user]);
 
-  const fetchConnections = useCallback(async () => {
-    if (!user) return;
+  const fetchConnections = async () => {
+    setLoading(true);
     try {
       const res = await getMyConnections();
-      const connectionsList = Array.isArray(res) ? res : (res?.data || []);
+      const list = Array.isArray(res) ? res : (res?.data || []);
       
-      const detailedConnections = await Promise.all(connectionsList.map(async (conn) => {
-          if (!conn) return null;
+      const detailed = await Promise.all(list.map(async (conn) => {
           const otherId = conn.requesterId === user.id ? conn.receiverId : conn.requesterId;
           try {
-              const userRes = await getUserById(otherId);
-              const otherUser = userRes;
-              if (!otherUser) return null;
+              const u = await getUserById(otherId);
               return {
                   ...conn,
                   otherUserId: otherId,
-                  otherUserName: `${otherUser.firstName || ''} ${otherUser.lastName || ''}`.trim() || 'LinkedIn User',
-                  otherUserAvatar: otherUser.profileImageUrl
+                  otherUserName: `${u.firstName} ${u.lastName}`,
+                  otherUserAvatar: u.profileImageUrl
               };
           } catch (e) {
               return { ...conn, otherUserId: otherId, otherUserName: 'LinkedIn User' };
           }
       }));
-
-      setConnections(detailedConnections.filter(c => c !== null));
+      setConnections(detailed);
     } catch (err) {
-      console.error('Failed to fetch connections for chat:', err);
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-  }, [user]);
-
-  useEffect(() => {
-    fetchConnections();
-  }, [fetchConnections]);
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, activeChat, scrollToBottom]);
-
-  const handleMouseDown = (e) => {
-    if (e.target.closest('.header-right') || e.target.closest('.header-icon')) return;
-    
-    setIsDragging(true);
-    setHasMoved(false);
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    });
   };
 
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging || !containerRef.current) return;
-    
-    const deltaX = Math.abs(e.clientX - (dragStart.x + position.x));
-    const deltaY = Math.abs(e.clientY - (dragStart.y + position.y));
-    
-    if (deltaX > dragThreshold || deltaY > dragThreshold) {
-        setHasMoved(true);
-    }
-
-    let nextX = e.clientX - dragStart.x;
-    let nextY = e.clientY - dragStart.y;
-
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const rect = containerRef.current.getBoundingClientRect();
-    const barWidth = rect.width;
-    
-    const expandedHeight = isOpen ? rect.height : 450; 
-    const initialRightOffset = 20;
-    const initialBottomOffset = 0;
-    
-    const minX = -(viewportWidth - barWidth - initialRightOffset);
-    const maxX = initialRightOffset;
-    
-    const minY = -(viewportHeight - expandedHeight - 52); 
-    const maxY = initialBottomOffset;
-
-    nextX = Math.min(Math.max(nextX, minX), maxX);
-    nextY = Math.min(Math.max(nextY, minY), maxY);
-    
-    setPosition({ x: nextX, y: nextY });
-  }, [isDragging, dragStart, position.x, position.y, isOpen]);
-
-  const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-        if (!hasMoved) {
-            setIsOpen(prev => !prev);
-        }
-        setIsDragging(false);
-    }
-  }, [isDragging, hasMoved]);
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    } else {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-
-  const handleOpenChat = async (conn) => {
-    if (!conn?.otherUserId) return;
-    setActiveChat({ id: conn.otherUserId, name: conn.otherUserName });
-    markAsRead(conn.otherUserId);
-    sendReadReceipt(conn.otherUserId);
+  const openChat = async (conn) => {
+    setActiveChat(conn);
     try {
-      const res = await getChatMessages(conn.otherUserId);
-      setChatHistory(conn.otherUserId, Array.isArray(res) ? res : []);
-    } catch (err) {
-      console.error('Failed to fetch chat history:', err);
-    }
-  };
-
-  const handleInputChange = (e) => {
-      const val = e.target.value;
-      setMessageInput(val);
-      
-      if (activeChat) {
-          sendTyping(activeChat.id, true);
-          
-          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-          typingTimeoutRef.current = setTimeout(() => {
-              sendTyping(activeChat.id, false);
-          }, 3000);
-      }
+        const history = await getChatMessages(conn.otherUserId);
+        setChatHistory(conn.otherUserId, history);
+    } catch (err) {}
   };
 
   const handleSendMessage = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!messageInput.trim() || !activeChat) return;
-    sendMessage(activeChat.id, messageInput);
+    sendMessage(activeChat.otherUserId, messageInput);
     setMessageInput('');
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    sendTyping(activeChat.id, false);
   };
 
-  if (!user) return null;
+  useEffect(() => {
+    if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeChat]);
 
-  const filteredConnections = connections.filter(c => {
-    const name = c.otherUserName;
-    return name?.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  const IMAGE_BASE_URL = process.env.REACT_APP_IMAGE_URL || 'http://localhost:9191/us/uploads/';
 
-  const dragStyle = {
-    transform: `translate(${position.x}px, ${position.y}px)`,
-    transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0, 0, 1)',
-    zIndex: 9999
-  };
+  const filteredConnections = connections.filter(c => 
+    c.otherUserName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div 
-        ref={containerRef}
-        className={`messaging-bar-container ${isOpen ? 'expanded' : ''}`}
-        style={dragStyle}
+    <motion.div 
+        layout
+        initial={false}
+        animate={{ height: isExpanded ? 450 : 48 }}
+        className={`messaging-bar-container ${isExpanded ? 'expanded' : ''}`}
+        style={{ width: isExpanded && activeChat ? '600px' : '280px', transition: 'width 0.3s ease' }}
     >
-      <div 
-        className="messaging-header" 
-        onMouseDown={handleMouseDown}
-        style={{ cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
-      >
+      <div className="messaging-header" onClick={() => setIsModalExpanded(!isExpanded)}>
         <div className="header-left">
-          <div className={`user-status-dot ${connected ? 'online' : ''}`}></div>
+          {user?.profileImageUrl ? (
+              <img src={`${IMAGE_BASE_URL}${user.profileImageUrl}`} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+          ) : (
+              <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '28px', color: '#adb3b8' }} />
+          )}
           <span>Messaging</span>
         </div>
         <div className="header-right">
-          <FontAwesomeIcon icon={faSearch} className="header-icon" />
+          <FontAwesomeIcon icon={faEllipsisH} className="header-icon" />
           <FontAwesomeIcon icon={faEdit} className="header-icon" />
-          <FontAwesomeIcon 
-            icon={isOpen ? faChevronDown : faChevronUp} 
-            className="header-icon" 
-            onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(!isOpen);
-            }} 
-          />
+          <FontAwesomeIcon icon={isExpanded ? faChevronDown : faChevronUp} className="header-icon" />
         </div>
       </div>
 
-      {isOpen && (
-        <div className="messaging-content">
-          {!activeChat ? (
-            <>
-              <div className="chat-search-box">
+      <AnimatePresence>
+      {isExpanded && (
+        <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="messaging-content" 
+            style={{ display: 'flex', flexDirection: 'row' }}
+        >
+          {/* List Section */}
+          <div style={{ width: '280px', borderRight: activeChat ? '1px solid #eee' : 'none', display: 'flex', flexDirection: 'column' }}>
+            <div className="chat-search-box">
                 <input 
-                  type="text" 
-                  placeholder="Search messages" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                    type="text" 
+                    placeholder="Search messages" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
                 />
-              </div>
-              <div className="connections-list">
-                {filteredConnections.length > 0 ? (
-                  filteredConnections.map(conn => (
-                    <div key={conn.id} className="connection-chat-item" onClick={() => handleOpenChat(conn)}>
-                      <div style={{ position: 'relative' }}>
-                        {conn.otherUserAvatar ? (
-                            <img src={`${IMAGE_BASE_URL}${conn.otherUserAvatar}`} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
-                        ) : (
-                            <FontAwesomeIcon icon={faUserCircle} className="chat-avatar" />
-                        )}
-                        {onlineUsers.has(conn.otherUserId) && (
-                            <div className="user-status-dot online" style={{ position: 'absolute', bottom: 0, right: 0, border: '2px solid white' }}></div>
-                        )}
-                      </div>
-                      <div className="chat-item-info">
-                        <div className="chat-item-name">{conn.otherUserName}</div>
-                        <div className="chat-item-preview">
-                            {typingStatus[conn.otherUserId] ? <span style={{ color: '#057642', fontStyle: 'italic' }}>Typing...</span> : 'Click to start chatting'}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="no-chats">No connections found</div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="active-chat-window">
-              <div className="active-chat-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span onClick={() => setActiveChat(null)} style={{ cursor: 'pointer', fontWeight: 600 }}>
-                    ← {activeChat.name}
-                    </span>
-                    {onlineUsers.has(activeChat.id) && <div className="user-status-dot online"></div>}
-                </div>
-                <FontAwesomeIcon icon={faTimes} onClick={() => setActiveChat(null)} style={{ cursor: 'pointer' }} />
-              </div>
-              <div className="messages-list">
-                {(messages[activeChat.id] || []).map((msg, idx) => (
-                  <div key={idx} className={`message-bubble ${msg.senderId === user.id ? 'sent' : 'received'}`}>
-                    <div className="message-text">{msg.content}</div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                        <div className="message-time">
-                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                        {msg.senderId === user.id && (
-                            <span style={{ fontSize: '10px', color: msg.isRead ? '#0a66c2' : '#666' }}>
-                                {msg.isRead ? '✓✓' : '✓'}
-                            </span>
-                        )}
-                    </div>
-                  </div>
-                ))}
-                {typingStatus[activeChat.id] && (
-                    <div className="typing-indicator" style={{ fontSize: '12px', color: '#666', padding: '4px 12px' }}>
-                        {activeChat.name} is typing...
-                    </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-              <form className="message-input-form" onSubmit={handleSendMessage}>
-                <input 
-                  type="text" 
-                  placeholder="Write a message..." 
-                  value={messageInput}
-                  onChange={handleInputChange}
-                />
-                <button type="submit" disabled={!messageInput.trim() || !connected}>
-                  <FontAwesomeIcon icon={faPaperPlane} />
-                </button>
-              </form>
             </div>
+            <div className="connections-list custom-scrollbar">
+                {loading ? <div className="spinner-small" style={{ marginTop: '20px' }}></div> : (
+                    filteredConnections.map((conn, idx) => (
+                        <motion.div 
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.03 }}
+                            key={conn.id} 
+                            className={`connection-chat-item ${activeChat?.id === conn.id ? 'active' : ''}`}
+                            onClick={() => openChat(conn)}
+                            style={{ backgroundColor: activeChat?.id === conn.id ? '#f3f2ef' : 'transparent' }}
+                        >
+                            {conn.otherUserAvatar ? (
+                                <img src={`${IMAGE_BASE_URL}${conn.otherUserAvatar}`} alt="" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
+                            ) : (
+                                <FontAwesomeIcon icon={faUserCircle} className="chat-avatar" />
+                            )}
+                            <div className="chat-item-info">
+                                <div className="chat-item-name">{conn.otherUserName}</div>
+                                <div className="chat-item-preview">Click to message</div>
+                            </div>
+                        </motion.div>
+                    ))
+                )}
+            </div>
+          </div>
+
+          {/* Active Chat Section */}
+          <AnimatePresence>
+          {activeChat && (
+              <motion.div 
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: '320px' }}
+                exit={{ opacity: 0, width: 0 }}
+                className="active-chat-window"
+              >
+                  <div className="active-chat-header">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FontAwesomeIcon icon={faChevronLeft} style={{ cursor: 'pointer', fontSize: '12px' }} onClick={() => setActiveChat(null)} />
+                        <span style={{ fontWeight: 600 }}>{activeChat.otherUserName}</span>
+                      </div>
+                      <FontAwesomeIcon icon={faTimes} style={{ cursor: 'pointer' }} onClick={() => setActiveChat(null)} />
+                  </div>
+                  <div className="messages-list custom-scrollbar">
+                      {(messages[activeChat.otherUserId] || []).map((msg, i) => (
+                          <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            key={i} 
+                            className={`message-bubble ${msg.senderId === user.id ? 'sent' : 'received'}`}
+                          >
+                              {msg.content}
+                              <div className="message-time">
+                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                          </motion.div>
+                      ))}
+                      <div ref={messagesEndRef} />
+                  </div>
+                  <form className="message-input-form" onSubmit={handleSendMessage}>
+                      <input 
+                        type="text" 
+                        placeholder="Write a message..." 
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        autoFocus
+                      />
+                      <button type="submit" disabled={!messageInput.trim()}><FontAwesomeIcon icon={faPaperPlane} /></button>
+                  </form>
+              </motion.div>
           )}
-        </div>
+          </AnimatePresence>
+        </motion.div>
       )}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 };
+
+const faTimes = { prefix: 'fas', iconName: 'times', icon: [352, 512, [], "f00d", "M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.19 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.19 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z"] };
 
 export default MessagingBar;

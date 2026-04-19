@@ -217,11 +217,13 @@ export const searchJobs = async (
 export const updateApplicationStatus = async (
   jobId: string,
   applicantId: string,
-  status: string
+  status: string,
+  interviewDate?: string,
+  interviewLink?: string
 ): Promise<JobApplication> => {
   const response = await api.patch<ApiResponse<JobApplication>>(
     API_ENDPOINTS.JOBS.UPDATE_STATUS(jobId, applicantId),
-    { status }
+    { status, interviewDate, interviewLink }
   );
   return response.data.data;
 };

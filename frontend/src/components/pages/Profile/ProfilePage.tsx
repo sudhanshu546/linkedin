@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUserCircle, faCamera, faPencilAlt, faMapMarkerAlt, faBriefcase, faGraduationCap, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faUserCircle, faCamera, faPencilAlt, faMapMarkerAlt, faBriefcase, faGraduationCap, faUsers, faEye, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { 
   getAuthenticatedUser, 
   getUserById, 
@@ -21,6 +21,7 @@ import {
 import Feed from '../Feed/Feed';
 import '../../../App.css';
 import { IMAGE_BASE_URL } from '../../../constants/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -143,152 +144,221 @@ const ProfilePage: React.FC = () => {
       }
   }, [userPostsCount]);
 
+  const handlePlaceholderAction = (actionName: string) => {
+      toast.info(`${actionName} feature coming soon!`);
+  };
+
   if (loading) return (
-    <div className="loading-container">
+    <div className="loading-container" style={{ textAlign: 'center', padding: '100px' }}>
       <div className="spinner"></div>
+      <p style={{ marginTop: '16px', color: '#666' }}>Loading professional profile...</p>
     </div>
   );
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
+  };
+
   return (
-    <div className="page-layout two-column-layout">
+    <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="page-layout two-column-layout" 
+        style={{ maxWidth: '1128px', margin: '0 auto' }}
+    >
       <main className="profile-main">
-        <div className="linkedin-card profile-header-card">
+        {/* Profile Header Card */}
+        <motion.div variants={itemVariants} className="linkedin-card profile-header-card" style={{ overflow: 'visible' }}>
           <div 
             className="profile-cover" 
             style={{ 
                 backgroundImage: profile?.coverImageUrl ? `url(${getImageUrl(profile.coverImageUrl)})` : 'linear-gradient(to right, #a0b4b7, #dce6e9)',
-                position: 'relative'
+                position: 'relative',
+                height: '200px',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                zIndex: 1,
+                borderRadius: '8px 8px 0 0'
             }}
           >
             {isOwnProfile && (
                 <>
-                    <button 
+                    <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                         className="cover-edit-btn" 
                         onClick={() => coverInputRef.current?.click()}
-                        style={{ position: 'absolute', top: '12px', right: '12px', background: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                        style={{ position: 'absolute', top: '12px', right: '12px', background: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', zIndex: 10 }}
                     >
                         <FontAwesomeIcon icon={faCamera} color="#0a66c2" />
-                    </button>
+                    </motion.button>
                     <input type="file" ref={coverInputRef} hidden onChange={handleCoverUpload} accept="image/*" />
                 </>
             )}
           </div>
-          <div className="profile-avatar-wrap">
+          <div className="profile-avatar-wrap" style={{ padding: '0 24px', marginTop: '-110px', marginBottom: '12px', position: 'relative', zIndex: 5 }}>
             {userDetails?.profileImageUrl ? (
-                <img src={getImageUrl(userDetails.profileImageUrl) || ''} alt="Profile" className="profile-main-avatar" style={{ objectFit: 'cover' }} />
+                <motion.img 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    src={getImageUrl(userDetails.profileImageUrl) || ''} 
+                    alt="Profile" 
+                    className="profile-main-avatar" 
+                    style={{ width: '152px', height: '152px', borderRadius: '50%', border: '4px solid white', objectFit: 'cover', background: 'white', boxShadow: '0 0 0 1px rgba(0,0,0,0.1)' }} 
+                />
             ) : (
-                <div className="profile-main-avatar" style={{ backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '80px', color: '#adb3b8' }}>
+                <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="profile-main-avatar" 
+                    style={{ width: '152px', height: '152px', borderRadius: '50%', border: '4px solid white', backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '80px', color: '#adb3b8', boxShadow: '0 0 0 1px rgba(0,0,0,0.1)' }}
+                >
                     <FontAwesomeIcon icon={faUserCircle} />
-                </div>
+                </motion.div>
             )}
           </div>
-          <div className="profile-info-section">
+          <div className="profile-info-section" style={{ padding: '0 24px 24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <h2 style={{ fontSize: '24px', margin: '0' }}>{userDetails?.firstName} {userDetails?.lastName}</h2>
-                    <p className="profile-headline" style={{ fontSize: '16px', margin: '4px 0' }}>{profile?.headline || 'Member at LinkedIn Clone'}</p>
-                    <p className="author-designation" style={{ color: '#666', fontSize: '14px' }}>
-                        <FontAwesomeIcon icon={faMapMarkerAlt} style={{ marginRight: '4px' }} />
+                    <h2 style={{ fontSize: '24px', margin: '0', fontWeight: 600, color: 'rgba(0,0,0,0.9)' }}>{userDetails?.firstName} {userDetails?.lastName}</h2>
+                    <p className="profile-headline" style={{ fontSize: '16px', margin: '4px 0', color: 'rgba(0,0,0,0.9)' }}>{profile?.headline || 'Member at LinkedIn Clone'}</p>
+                    <p style={{ color: '#666', fontSize: '14px', margin: '4px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <FontAwesomeIcon icon={faMapMarkerAlt} />
                         {profile?.city ? `${profile.city}, ${profile.state}` : 'Location not set'}
                     </p>
-                    <p style={{ color: '#0a66c2', fontWeight: 600, fontSize: '14px', marginTop: '8px' }}>
+                    <p style={{ color: '#0a66c2', fontWeight: 600, fontSize: '14px', marginTop: '8px', cursor: 'pointer' }}>
                         {profile?.connectionsCount || 0} connections
                     </p>
                 </div>
                 {isOwnProfile && (
-                    <Link to="/profile/edit" className="edit-icon-link">
-                        <FontAwesomeIcon icon={faPencilAlt} />
-                    </Link>
+                    <motion.div whileHover={{ scale: 1.1 }}>
+                        <Link to="/profile/edit" className="edit-icon-link" style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#666' }}>
+                            <FontAwesomeIcon icon={faPencilAlt} />
+                        </Link>
+                    </motion.div>
                 )}
             </div>
             
             <div className="profile-actions" style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
               {isOwnProfile ? (
                 <>
-                    <button className="primary-button">Open to</button>
-                    <button className="secondary-button">Add profile section</button>
-                    <button className="secondary-button" style={{ border: '1px solid #666', color: '#666' }}>More</button>
+                    <motion.button whileHover={{ backgroundColor: '#004182' }} className="btn-primary-round" style={{ padding: '6px 16px', fontSize: '16px' }} onClick={() => handlePlaceholderAction('Open to')}>Open to</motion.button>
+                    <motion.button whileHover={{ backgroundColor: 'rgba(10, 102, 194, 0.1)' }} className="btn-secondary-round" style={{ padding: '6px 16px', fontSize: '16px' }} onClick={() => handlePlaceholderAction('Add profile section')}>Add profile section</motion.button>
+                    <button className="btn-secondary-round" style={{ padding: '6px 16px', fontSize: '16px', border: '1px solid #666', color: '#666' }} onClick={() => handlePlaceholderAction('More Options')}>More</button>
                 </>
               ) : (
                 <>
                   {connectionStatus?.status === 'NONE' && (
-                    <button onClick={() => handleAction(sendConnectionRequest, userDetails.id)} className="primary-button" disabled={actionLoading}>
+                    <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleAction(sendConnectionRequest, userDetails.id)} 
+                        className="btn-primary-round" 
+                        disabled={actionLoading}
+                        style={{ padding: '6px 20px', fontSize: '16px' }}
+                    >
                         <FontAwesomeIcon icon={faUsers} style={{ marginRight: '8px' }} />
                         Connect
-                    </button>
+                    </motion.button>
                   )}
                   {connectionStatus?.status === 'PENDING' && (
                     connectionStatus.isRequester ? 
-                    <button onClick={() => handleAction(cancelConnectionRequest, connectionStatus.connectionId)} className="secondary-button" disabled={actionLoading}>Withdraw</button> :
+                    <button onClick={() => handleAction(cancelConnectionRequest, connectionStatus.connectionId)} className="btn-secondary-round" disabled={actionLoading}>Withdraw</button> :
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, true)} className="primary-button" disabled={actionLoading}>Accept</button>
-                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, false)} className="secondary-button" disabled={actionLoading}>Ignore</button>
+                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, true)} className="btn-primary-round" disabled={actionLoading}>Accept</button>
+                        <button onClick={() => handleAction(respondToConnectionRequest, connectionStatus.connectionId, false)} className="btn-secondary-round" disabled={actionLoading}>Ignore</button>
                     </div>
                   )}
                   {connectionStatus?.status === 'ACCEPTED' && (
                     <>
-                        <button onClick={handleMessageClick} className="primary-button">Message</button>
-                        <button className="secondary-button" style={{ border: '1px solid #666', color: '#666' }}>More</button>
+                        <motion.button whileHover={{ scale: 1.05 }} onClick={handleMessageClick} className="btn-primary-round" style={{ padding: '6px 20px', fontSize: '16px' }}>Message</motion.button>
+                        <button className="btn-secondary-round" style={{ border: '1px solid #666', color: '#666' }}>More</button>
                     </>
                   )}
                 </>
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
+        {/* Analytics Section */}
         {isOwnProfile && (
-          <div className="linkedin-card analytics-section">
-            <div className="card-header">
-              <h3>Analytics</h3>
-              <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0' }}><i className="fa fa-eye"></i> Private to you</p>
+          <motion.div variants={itemVariants} className="linkedin-card" style={{ padding: '24px' }}>
+            <div className="card-header" style={{ marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Analytics</h3>
+              <p style={{ fontSize: '14px', color: '#666', margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <FontAwesomeIcon icon={faEye} size="xs" /> Private to you
+              </p>
             </div>
-            <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', padding: '16px', gap: '16px' }}>
-              <Link to="/profile-views" className="analytics-item" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <h4 style={{ margin: 0, fontSize: '16px' }}>{viewCount}</h4>
+            <div className="analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              <Link to="/profile-views" className="analytics-item" style={{ textDecoration: 'none', color: 'inherit', padding: '12px', borderRadius: '8px', transition: 'background 0.2s' }}>
+                <h4 style={{ margin: 0, fontSize: '16px', color: 'rgba(0,0,0,0.9)' }}>{viewCount}</h4>
                 <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>Profile viewers</p>
               </Link>
-              <div className="analytics-item">
-                <h4 style={{ margin: 0, fontSize: '16px' }}>142</h4>
+              <div className="analytics-item" style={{ padding: '12px' }}>
+                <h4 style={{ margin: 0, fontSize: '16px', color: 'rgba(0,0,0,0.9)' }}>{Math.floor(Math.random() * 200) + 50}</h4>
                 <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>Post impressions</p>
               </div>
-              <div className="analytics-item">
-                <h4 style={{ margin: 0, fontSize: '16px' }}>12</h4>
+              <div className="analytics-item" style={{ padding: '12px' }}>
+                <h4 style={{ margin: 0, fontSize: '16px', color: 'rgba(0,0,0,0.9)' }}>{Math.floor(Math.random() * 50) + 5}</h4>
                 <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#666' }}>Search appearances</p>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        <div className="linkedin-card">
-          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <h3>About</h3>
-            {isOwnProfile && <Link to="/profile/edit"><FontAwesomeIcon icon={faPencilAlt} color="#666" /></Link>}
+        {/* About Section */}
+        <motion.div variants={itemVariants} className="linkedin-card" style={{ padding: '24px' }}>
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>About</h3>
+            {isOwnProfile && <Link to="/profile/edit" style={{ color: '#666' }}><FontAwesomeIcon icon={faPencilAlt} /></Link>}
           </div>
           <div className="card-body">
-            <p style={{ whiteSpace: 'pre-wrap' }}>{profile?.summary || profile?.bio || 'No summary yet.'}</p>
+            <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.5', whiteSpace: 'pre-wrap', color: 'rgba(0,0,0,0.9)' }}>
+                {profile?.summary || profile?.bio || 'No summary provided yet. Add an about section to highlight your professional story.'}
+            </p>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="linkedin-card profile-activity-card">
-          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        {/* Activity Section */}
+        <motion.div variants={itemVariants} className="linkedin-card profile-activity-card" style={{ padding: '0' }}>
+          <div className="card-header" style={{ padding: '24px 24px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-                <h3>Activity</h3>
-                <p style={{ fontSize: '14px', color: '#0a66c2', fontWeight: 600 }}>{profile?.connectionsCount || 0} followers</p>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Activity</h3>
+                <p style={{ fontSize: '14px', color: '#0a66c2', fontWeight: 600, margin: '4px 0 0' }}>{profile?.connectionsCount || 0} followers</p>
             </div>
-            {isOwnProfile && <button onClick={handleCreatePostClick} className="secondary-button" style={{ height: '32px', fontSize: '14px' }}>Create a post</button>}
+            {isOwnProfile && (
+                <motion.button 
+                    whileHover={{ backgroundColor: 'rgba(10, 102, 194, 0.1)' }}
+                    onClick={handleCreatePostClick} 
+                    className="btn-secondary-round" 
+                    style={{ padding: '4px 16px' }}
+                >
+                    Create a post
+                </motion.button>
+            )}
           </div>
-          <div className="card-body" style={{ padding: '0' }}>
+          <div className="card-body" style={{ padding: '0 12px' }}>
             {userDetails?.id && (
               <Feed 
                 userId={userDetails.id} 
-                limit={1} 
+                limit={3} 
                 onPostsLoaded={handlePostsLoaded}
               />
             )}
             {userPostsCount === 0 && !loading && (
-              <div style={{ padding: '24px', textAlign: 'center' }}>
-                <p style={{ color: '#666' }}>No recent activity to show.</p>
+              <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+                <p style={{ color: '#666', margin: 0 }}>No recent activity to show.</p>
               </div>
             )}
           </div>
@@ -297,111 +367,134 @@ const ProfilePage: React.FC = () => {
                 <Link to={`/profile/${userDetails?.id}/posts`} style={{ color: '#666', fontWeight: 600, textDecoration: 'none', fontSize: '14px' }}>Show all posts →</Link>
             </div>
           )}
-        </div>
+        </motion.div>
 
-        <div className="linkedin-card section-card">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <h3>Experience</h3>
-                {isOwnProfile && <button className="add-btn"><FontAwesomeIcon icon={faPencilAlt} /></button>}
+        {/* Experience Section */}
+        <motion.div variants={itemVariants} className="linkedin-card" style={{ padding: '24px' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Experience</h3>
+                {isOwnProfile && (
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <motion.button whileHover={{ scale: 1.1 }} className="add-btn" style={{ color: '#666' }} onClick={() => handlePlaceholderAction('Add Experience')}><FontAwesomeIcon icon={faPlus} /></motion.button>
+                        <motion.button whileHover={{ scale: 1.1 }} className="add-btn" style={{ color: '#666' }} onClick={() => handlePlaceholderAction('Edit Experience')}><FontAwesomeIcon icon={faPencilAlt} /></motion.button>
+                    </div>
+                )}
             </div>
             <div className="card-body">
                 {profile?.experience && profile.experience.length > 0 ? (
                     profile.experience.map((exp: any, idx: number) => (
-                        <div key={idx} className="experience-item" style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-                            <div className="experience-icon" style={{ width: '48px', height: '48px', backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <div key={idx} className="experience-item" style={{ display: 'flex', gap: '12px', marginBottom: idx === profile.experience.length - 1 ? 0 : '24px', borderBottom: idx === profile.experience.length - 1 ? 'none' : '1px solid #eee', paddingBottom: idx === profile.experience.length - 1 ? 0 : '24px' }}>
+                            <div className="experience-icon" style={{ width: '48px', height: '48px', backgroundColor: '#f3f2ef', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
                                 <FontAwesomeIcon icon={faBriefcase} color="#666" size="lg" />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <h4 style={{ margin: '0 0 2px 0', fontSize: '16px' }}>{exp.position}</h4>
-                                <p style={{ margin: '0', fontSize: '14px' }}>{exp.company}</p>
-                                <p style={{ margin: '4px 0', fontSize: '14px', color: '#666' }}>
+                                <h4 style={{ margin: '0', fontSize: '16px', fontWeight: 600, color: 'rgba(0,0,0,0.9)' }}>{exp.position}</h4>
+                                <p style={{ margin: '2px 0', fontSize: '14px', color: 'rgba(0,0,0,0.9)' }}>{exp.company}</p>
+                                <p style={{ margin: '2px 0', fontSize: '14px', color: '#666' }}>
                                     {new Date(exp.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - {exp.isCurrentlyWorking ? 'Present' : new Date(exp.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                                 </p>
-                                {exp.description && <p style={{ marginTop: '8px', fontSize: '14px', color: 'rgba(0,0,0,0.9)' }}>{exp.description}</p>}
+                                {exp.description && <p style={{ marginTop: '8px', fontSize: '14px', color: 'rgba(0,0,0,0.9)', lineHeight: '1.4' }}>{exp.description}</p>}
                             </div>
                         </div>
                     ))
                 ) : (
-                    <p style={{ color: '#666' }}>No experience listed.</p>
+                    <p style={{ color: '#666', margin: 0 }}>No experience listed.</p>
                 )}
             </div>
-        </div>
+        </motion.div>
 
-        <div className="linkedin-card section-card">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <h3>Education</h3>
-                {isOwnProfile && <button className="add-btn"><FontAwesomeIcon icon={faPencilAlt} /></button>}
+        {/* Education Section */}
+        <motion.div variants={itemVariants} className="linkedin-card" style={{ padding: '24px' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Education</h3>
+                {isOwnProfile && (
+                    <div style={{ display: 'flex', gap: '16px' }}>
+                        <motion.button whileHover={{ scale: 1.1 }} className="add-btn" style={{ color: '#666' }} onClick={() => handlePlaceholderAction('Add Education')}><FontAwesomeIcon icon={faPlus} /></motion.button>
+                        <motion.button whileHover={{ scale: 1.1 }} className="add-btn" style={{ color: '#666' }} onClick={() => handlePlaceholderAction('Edit Education')}><FontAwesomeIcon icon={faPencilAlt} /></motion.button>
+                    </div>
+                )}
             </div>
             <div className="card-body">
                 {profile?.education && profile.education.length > 0 ? (
                     profile.education.map((edu: any, idx: number) => (
-                        <div key={idx} className="education-item" style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-                            <div className="education-icon" style={{ width: '48px', height: '48px', backgroundColor: '#f3f2ef', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <div key={idx} className="education-item" style={{ display: 'flex', gap: '12px', marginBottom: idx === profile.education.length - 1 ? 0 : '24px', borderBottom: idx === profile.education.length - 1 ? 'none' : '1px solid #eee', paddingBottom: idx === profile.education.length - 1 ? 0 : '24px' }}>
+                            <div className="education-icon" style={{ width: '48px', height: '48px', backgroundColor: '#f3f2ef', borderRadius: '4px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
                                 <FontAwesomeIcon icon={faGraduationCap} color="#666" size="lg" />
                             </div>
                             <div style={{ flex: 1 }}>
-                                <h4 style={{ margin: '0 0 2px 0', fontSize: '16px' }}>{edu.institution}</h4>
-                                <p style={{ margin: '0', fontSize: '14px' }}>{edu.degree}, {edu.fieldOfStudy}</p>
-                                <p style={{ margin: '4px 0', fontSize: '14px', color: '#666' }}>
+                                <h4 style={{ margin: '0', fontSize: '16px', fontWeight: 600, color: 'rgba(0,0,0,0.9)' }}>{edu.institution}</h4>
+                                <p style={{ margin: '2px 0', fontSize: '14px', color: 'rgba(0,0,0,0.9)' }}>{edu.degree}, {edu.fieldOfStudy}</p>
+                                <p style={{ margin: '2px 0', fontSize: '14px', color: '#666' }}>
                                     {new Date(edu.startDate).getFullYear()} - {edu.endDate ? new Date(edu.endDate).getFullYear() : 'Present'}
                                 </p>
                             </div>
                         </div>
                     ))
                 ) : (
-                    <p style={{ color: '#666' }}>No education listed.</p>
+                    <p style={{ color: '#666', margin: 0 }}>No education listed.</p>
                 )}
             </div>
-        </div>
-
-        <div className="linkedin-card section-card">
-            <div className="card-header"><h3>Skills</h3></div>
-            <div className="card-body">
-                {profile?.skills && profile.skills.length > 0 ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {profile.skills.split(',').map((skill: string, idx: number) => (
-                            <span key={idx} style={{ padding: '8px 16px', border: '1px solid #666', borderRadius: '16px', fontSize: '14px', fontWeight: 600, color: '#666' }}>
-                                {skill.trim()}
-                            </span>
-                        ))}
-                    </div>
-                ) : (
-                    <p style={{ color: '#666' }}>No skills listed.</p>
-                )}
-            </div>
-        </div>
+        </motion.div>
       </main>
 
+      {/* Sidebar */}
       <aside className="profile-sidebar">
-        <div className="linkedin-card card-body">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0 }}>Profile Language</h4>
-            {isOwnProfile && <FontAwesomeIcon icon={faPencilAlt} size="xs" color="#666" />}
-          </div>
-          <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>English</p>
-        </div>
-        <div className="linkedin-card card-body">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0 }}>Public profile & URL</h4>
-            {isOwnProfile && <FontAwesomeIcon icon={faPencilAlt} size="xs" color="#666" />}
-          </div>
-          <p style={{ fontSize: '12px', color: '#0a66c2', marginTop: '8px', wordBreak: 'break-all' }}>
-            linkedin.com/in/{userDetails?.firstName?.toLowerCase()}-{userDetails?.lastName?.toLowerCase()}-{userDetails?.id?.substring(0, 8)}
-          </p>
-        </div>
-        
-        <div className="linkedin-card promo-card">
-            <div style={{ padding: '12px', textAlign: 'center' }}>
-                <p style={{ fontSize: '12px', color: '#666' }}>Ad</p>
-                <p style={{ fontSize: '14px', fontWeight: 600 }}>Unlock your full potential with LinkedIn Premium</p>
-                <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}>
-                    <img src={getImageUrl(userDetails?.profileImageUrl) || 'https://via.placeholder.com/60'} alt="User" style={{ width: '60px', height: '60px', borderRadius: '50%' }} />
-                </div>
-                <button className="secondary-button" style={{ width: '100%', borderRadius: '20px' }}>Try for Free</button>
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="linkedin-card" 
+            style={{ padding: '16px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>Profile Language</h4>
+                {isOwnProfile && <FontAwesomeIcon icon={faPencilAlt} size="xs" color="#666" style={{ cursor: 'pointer' }} onClick={() => handlePlaceholderAction('Change Language')} />}
             </div>
-        </div>
+            <p style={{ fontSize: '14px', color: '#666', marginTop: '8px', margin: '8px 0 0' }}>English</p>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="linkedin-card" 
+            style={{ padding: '16px' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>Public profile & URL</h4>
+                {isOwnProfile && <FontAwesomeIcon icon={faPencilAlt} size="xs" color="#666" style={{ cursor: 'pointer' }} onClick={() => handlePlaceholderAction('Edit URL')} />}
+            </div>
+            <p style={{ fontSize: '12px', color: '#0a66c2', marginTop: '8px', margin: '8px 0 0', wordBreak: 'break-all', fontWeight: 600 }}>
+                linkedin.com/in/{userDetails?.firstName?.toLowerCase()}-{userDetails?.lastName?.toLowerCase()}-{userDetails?.id?.substring(0, 8)}
+            </p>
+          </motion.div>
+        
+        <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="linkedin-card promo-card" 
+            style={{ padding: '16px', textAlign: 'center' }}
+        >
+            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 12px' }}>Ad</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 16px' }}>Unlock your full potential with LinkedIn Premium</p>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                {userDetails?.profileImageUrl ? (
+                    <img src={`${IMAGE_BASE_URL}${userDetails.profileImageUrl}`} alt="User" style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #eee' }} />
+                ) : (
+                    <FontAwesomeIcon icon={faUserCircle} style={{ fontSize: '64px', color: '#adb3b8' }} />
+                )}
+            </div>
+            <motion.button 
+                whileHover={{ backgroundColor: 'rgba(10, 102, 194, 0.1)' }}
+                className="btn-secondary-round" 
+                style={{ width: '100%' }}
+                onClick={() => handlePlaceholderAction('Premium Subscription')}
+            >
+                Try for Free
+            </motion.button>
+        </motion.div>
       </aside>
-    </div>
+    </motion.div>
   );
 };
 
